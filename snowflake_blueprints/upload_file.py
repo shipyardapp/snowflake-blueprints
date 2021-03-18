@@ -12,6 +12,7 @@ def get_args():
     parser.add_argument('--username', dest='username', required=True)
     parser.add_argument('--password', dest='password', required=True)
     parser.add_argument('--account', dest='account', required=True)
+    parser.add_argument('--warehouse', dest='warehouse', required=False)
     parser.add_argument('--database', dest='database', required=False)
     parser.add_argument('--schema', dest='schema', required=False)
     parser.add_argument('--source-file-name-match-type',
@@ -98,7 +99,8 @@ def main():
             user=args.username,
             password=args.password,
             database=args.database,
-            schema=args.schema
+            schema=args.schema,
+            warehouse=args.warehouse
         ))
     except Exception as e:
         print(f'Failed to connect to database {args.database}')
