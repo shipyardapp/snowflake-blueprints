@@ -7,6 +7,7 @@ def get_args():
     parser.add_argument('--username', dest='username', required=True)
     parser.add_argument('--password', dest='password', required=False)
     parser.add_argument('--account', dest='account', required=True)
+    parser.add_argument('--warehouse', dest='warehouse', required=False)
     parser.add_argument('--database', dest='database', required=True)
     parser.add_argument('--schema', dest='schema', required=False)
     parser.add_argument('--query', dest='query', required=True)
@@ -19,14 +20,15 @@ def main():
     username = args.username
     password = args.password
     account = args.account
+    warehouse = args.warehouse
     database = args.database
     schema = args.schema
     query = args.query
 
     try:
         con = snowflake.connector.connect(user=username, password=password,
-                                          account=account, database=database,
-                                          schema=schema)
+                                          account=account, warehouse=warehouse,
+                                          database=database,schema=schema)
         cur = con.cursor()
     except Exception as e:
         print(f'Failed to connect to Snowflake with user {username}')
@@ -37,4 +39,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
