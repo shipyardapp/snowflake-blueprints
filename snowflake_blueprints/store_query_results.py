@@ -1,7 +1,16 @@
 import snowflake.connector
+from snowflake.connector.errors import DatabaseError, ForbiddenError
 import argparse
 import os
 import pandas as pd
+from pandas.io.sql import DatabaseError
+import sys
+import code
+
+EXIT_CODE_UNKNOWN_ERROR = 3
+EXIT_CODE_INVALID_CREDENTIALS = 200
+EXIT_CODE_INVALID_ACCOUNT = 201
+EXIT_CODE_INVALID_WAREHOUSE = 202
 
 
 def get_args():
@@ -56,14 +65,23 @@ def create_csv(query, db_connection, destination_file_path, file_header=True):
     Read in data from a SQL query. Store the data as a csv.
     """
     i = 1
-    for chunk in pd.read_sql_query(query, db_connection, chunksize=10000):
-        if i == 1:
-            chunk.to_csv(destination_file_path, mode='a',
-                         header=file_header, index=False)
-        else:
-            chunk.to_csv(destination_file_path, mode='a',
-                         header=False, index=False)
-        i += 1
+    try:
+        for chunk in pd.read_sql_query(query, db_connection, chunksize=10000):
+            if i == 1:
+                chunk.to_csv(destination_file_path, mode='a',
+                             header=file_header, index=False)
+            else:
+                chunk.to_csv(destination_file_path, mode='a',
+                             header=False, index=False)
+            i += 1
+    except DatabaseError as db_e:
+        if 'No active warehouse' in db_e.args[0]:
+            print(
+                f'The warehouse provided either does not exist or your user does not have access to it.')
+            print(db_e)
+            sys.exit(EXIT_CODE_INVALID_WAREHOUSE)
+        print(db_e)
+
     print(f'Successfully stored query results as {destination_file_path}')
     return
 
@@ -86,14 +104,30 @@ def main():
     try:
         con = snowflake.connector.connect(user=username, password=password,
                                           account=account, warehouse=warehouse,
-                                          database=database,schema=schema)
+                                          database=database, schema=schema)
+    except DatabaseError as db_e:
+        if db_e.errno == 250001:
+            print(f'Invalid username or password. Please check for typos and try again.')
+        print(db_e)
+        sys.exit(EXIT_CODE_INVALID_CREDENTIALS)
+    except ForbiddenError as f_e:
+        if f_e.errno == 250001:
+            if '.' not in account:
+                print(
+                    f'Invalid account name. Instead of {account}, it might need to be something like {account}.us-east-2.aws, including the region.')
+            else:
+                print(
+                    f'Invalid account name. Instead of {account}, it might need to be something like {account.split(".")[0]}, without the region.')
+        print(f_e)
+        sys.exit(EXIT_CODE_INVALID_ACCOUNT)
     except Exception as e:
-        print(f'Failed to connect to Snowflake with user {username}')
+        print(f'Failed to connect to Snowflake.')
+        print(e)
+        sys.exit(EXIT_CODE_UNKNOWN_ERROR)
 
     if not os.path.exists(destination_folder_name) and (
             destination_folder_name != ''):
         os.makedirs(destination_folder_name)
-
     create_csv(
         query=query,
         db_connection=con,
