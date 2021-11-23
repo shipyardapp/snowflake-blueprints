@@ -1,11 +1,16 @@
 import argparse
 import snowflake.connector
-from snowflake.connector.errors import DatabaseError, ForbiddenError
+from snowflake.connector.errors import DatabaseError, ForbiddenError, ProgrammingError
+import sys
+import code
 
 EXIT_CODE_UNKNOWN_ERROR = 3
 EXIT_CODE_INVALID_CREDENTIALS = 200
 EXIT_CODE_INVALID_ACCOUNT = 201
 EXIT_CODE_INVALID_WAREHOUSE = 202
+EXIT_CODE_INVALID_DATABASE = 203
+EXIT_CODE_INVALID_SCHEMA = 204
+EXIT_CODE_INVALID_QUERY = 205
 
 
 def get_args():
@@ -19,6 +24,15 @@ def get_args():
     parser.add_argument('--query', dest='query', required=True)
     args = parser.parse_args()
     return args
+
+
+def validate_database(con, database):
+    result = con.cursor().execute(
+        f"SHOW DATABASES LIKE '{database}'").fetchone()
+    if not result:
+        print('Database provided does not exist. Please check for typos and try again.')
+        sys.exit(EXIT_CODE_INVALID_DATABASE)
+    return
 
 
 def main():
@@ -36,6 +50,7 @@ def main():
                                           account=account, warehouse=warehouse,
                                           database=database, schema=schema)
         cur = con.cursor()
+        # code.interact(local=locals())
     except DatabaseError as db_e:
         if db_e.errno == 250001:
             print(f'Invalid username or password. Please check for typos and try again.')
@@ -56,8 +71,23 @@ def main():
         print(e)
         sys.exit(EXIT_CODE_UNKNOWN_ERROR)
 
-    cur.execute(query)
-    print('Your query has been successfully executed.')
+    validate_database(con=con, database=database)
+
+    try:
+        cur.execute(query)
+        print('Your query has been successfully executed.')
+    except ProgrammingError as p_e:
+        if 'SQL compilation error' in str(p_e):
+            print('Your SQL contains an error. Check for typos and try again.')
+            print(p_e)
+            sys.exit(EXIT_CODE_INVALID_QUERY)
+        print(f'Failed to execute query.')
+        print(p_e)
+        sys.exit(EXIT_CODE_UNKNOWN_ERROR)
+    except Exception as e:
+        print(f'Failed to execute query.')
+        print(e)
+        sys.exit(EXIT_CODE_UNKNOWN_ERROR)
 
 
 if __name__ == '__main__':
