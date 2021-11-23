@@ -2,7 +2,6 @@ import argparse
 import snowflake.connector
 from snowflake.connector.errors import DatabaseError, ForbiddenError, ProgrammingError
 import sys
-import code
 
 EXIT_CODE_UNKNOWN_ERROR = 3
 EXIT_CODE_INVALID_CREDENTIALS = 200
@@ -50,7 +49,6 @@ def main():
                                           account=account, warehouse=warehouse,
                                           database=database, schema=schema)
         cur = con.cursor()
-        # code.interact(local=locals())
     except DatabaseError as db_e:
         if db_e.errno == 250001:
             print(f'Invalid username or password. Please check for typos and try again.')

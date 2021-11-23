@@ -5,7 +5,6 @@ import os
 import glob
 import re
 import pandas as pd
-import code
 import sys
 
 from sqlalchemy.exc import DatabaseError, DBAPIError, ProgrammingError
