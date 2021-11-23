@@ -87,13 +87,20 @@ def create_csv(query, db_connection, destination_file_path, file_header=True):
             print('Your SQL contains an error. Check for typos and try again.')
             print(db_e)
             sys.exit(EXIT_CODE_INVALID_QUERY)
-        print('this was a db error')
+        print('Failed to create a file with data.')
         print(db_e)
-
+        sys.exit(EXIT_CODE_UNKNOWN_ERROR)
+    except Exception as e:
+        print('Failed to create a file with data.')
+        print(e)
+        sys.exit(EXIT_CODE_UNKNOWN_ERROR)
     return
 
 
 def validate_database(con, database):
+    """
+    Check against the list of databases the user has access to to verify if the provided database matches.
+    """
     result = con.cursor().execute(
         f"SHOW DATABASES LIKE '{database}'").fetchone()
     if not result:

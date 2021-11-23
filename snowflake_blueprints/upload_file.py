@@ -123,6 +123,7 @@ def upload_data(source_full_path, table_name, insert_method, db_connection):
             print(f'The schema provided either does not exist or your user does not have access to it. If no schema was provided, no default schema exists.')
             print(db_e)
             sys.exit(EXIT_CODE_INVALID_SCHEMA)
+        print(f'Failed to upload file to Snowflake.')
         print(db_e.orig)  # Avoids printing data to console
         sys.exit(EXIT_CODE_UNKNOWN_ERROR)
     except Exception as e:

@@ -26,6 +26,9 @@ def get_args():
 
 
 def validate_database(con, database):
+    """
+    Check against the list of databases the user has access to to verify if the provided database matches.
+    """
     result = con.cursor().execute(
         f"SHOW DATABASES LIKE '{database}'").fetchone()
     if not result:
