@@ -13,6 +13,7 @@ EXIT_CODE_INVALID_WAREHOUSE = 202
 EXIT_CODE_INVALID_DATABASE = 203
 EXIT_CODE_INVALID_SCHEMA = 204
 EXIT_CODE_INVALID_QUERY = 205
+EXIT_CODE_NO_RESULTS = 206
 
 
 def get_args():
@@ -76,7 +77,12 @@ def create_csv(query, db_connection, destination_file_path, file_header=True):
                 chunk.to_csv(destination_file_path, mode='a',
                              header=False, index=False)
             i += 1
-        print(f'Successfully stored query results as {destination_file_path}')
+        if not os.path.exists(destination_file_path):
+            print('Query did not return with any data, so no file was created.')
+            sys.exit(EXIT_CODE_NO_RESULTS)
+        else:
+            print(
+                f'Successfully stored query results as {destination_file_path}')
     except DatabaseError as db_e:
         if 'No active warehouse' in db_e.args[0]:
             print(
