@@ -6,6 +6,7 @@ import glob
 import re
 import pandas as pd
 import sys
+import code
 
 from sqlalchemy.exc import DatabaseError, DBAPIError, ProgrammingError
 
@@ -108,6 +109,12 @@ def upload_data(source_full_path, table_name, insert_method, db_connection):
             print(
                 f'The warehouse provided either does not exist or your user does not have access to it. If no warehouse was provided, this user does not have a default warehouse.')
             print(db_e.orig)  # Avoids printing data to console
+            try:
+                # Addresses issue where sometimes an empty table gets created,
+                # preventing future uses.
+                db_connection.execute(f'DROP TABLE {table_name}')
+            except BaseException:
+                pass
             sys.exit(EXIT_CODE_INVALID_WAREHOUSE)
         if 'session does not have a current database' in str(db_e):
             print(
