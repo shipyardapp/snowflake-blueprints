@@ -109,6 +109,16 @@ def validate_database(con, database):
     return
 
 
+def clean_folder_name(folder_name):
+    """
+    Cleans folders name by removing duplicate '/' as well as leading and trailing '/' characters.
+    """
+    folder_name = folder_name.strip('/')
+    if folder_name != '':
+        folder_name = os.path.normpath(folder_name)
+    return folder_name
+
+
 def main():
     args = get_args()
     username = args.username
@@ -119,7 +129,7 @@ def main():
     schema = args.schema
     query = args.query
     destination_file_name = args.destination_file_name
-    destination_folder_name = args.destination_folder_name
+    destination_folder_name = clean_folder_name(args.destination_folder_name)
     destination_full_path = combine_folder_and_file_name(
         folder_name=destination_folder_name, file_name=destination_file_name)
     file_header = convert_to_boolean(args.file_header)
