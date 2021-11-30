@@ -1,14 +1,16 @@
+from sqlalchemy.exc import DatabaseError, DBAPIError, ProgrammingError
+import pandas as pd
 from sqlalchemy import create_engine
 from snowflake.sqlalchemy import URL
 import argparse
 import os
 import glob
 import re
-import pandas as pd
 import sys
-import code
 
-from sqlalchemy.exc import DatabaseError, DBAPIError, ProgrammingError
+import warnings
+warnings.simplefilter(action='ignore', category=UserWarning)
+
 
 EXIT_CODE_UNKNOWN_ERROR = 3
 EXIT_CODE_INVALID_CREDENTIALS = 200
