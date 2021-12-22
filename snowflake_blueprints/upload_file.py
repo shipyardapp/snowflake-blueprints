@@ -10,6 +10,9 @@ import sys
 
 import warnings
 warnings.simplefilter(action='ignore', category=UserWarning)
+warnings.filterwarnings(
+    action='ignore',
+    message='Dialect snowflake:snowflake will not make use of SQL compilation caching.*')
 
 
 EXIT_CODE_UNKNOWN_ERROR = 3
@@ -105,7 +108,6 @@ def upload_data(source_full_path, table_name, insert_method, db_connection):
                 if_exists=insert_method,
                 method='multi',
                 chunksize=1000)
-        print(f'{source_full_path} successfully uploaded to {table_name}.')
     except DatabaseError as db_e:
         if 'No active warehouse' in str(db_e):
             print(
@@ -148,6 +150,7 @@ def upload_data(source_full_path, table_name, insert_method, db_connection):
         print(f'Failed to upload file to Snowflake.')
         print(e)
         sys.exit(EXIT_CODE_UNKNOWN_ERROR)
+    print(f'{source_full_path} successfully uploaded to {table_name}.')
 
 
 def main():
