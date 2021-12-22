@@ -10,6 +10,9 @@ import sys
 
 import warnings
 warnings.simplefilter(action='ignore', category=UserWarning)
+warnings.filterwarnings(
+    action='ignore',
+    message='Dialect snowflake:snowflake will not make use of SQL compilation caching.*')
 
 
 EXIT_CODE_UNKNOWN_ERROR = 3
