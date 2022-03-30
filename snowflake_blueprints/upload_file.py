@@ -100,14 +100,21 @@ def combine_folder_and_file_name(folder_name, file_name):
 
 def upload_data(source_full_path, table_name, insert_method, db_connection):
     try:
-        for chunk in pd.read_csv(source_full_path, chunksize=10000):
+        for index, chunk in enumerate(
+                pd.read_csv(source_full_path, chunksize=10000)):
+
+            if insert_method == 'replace' and index > 0:
+                # First chunk replaces the table, the following chunks
+                # append to the end.
+                insert_method = 'append'
+
             chunk.to_sql(
                 table_name,
                 con=db_connection,
                 index=False,
                 if_exists=insert_method,
                 method='multi',
-                chunksize=1000)
+                chunksize=10000)
     except DatabaseError as db_e:
         if 'No active warehouse' in str(db_e):
             print(
