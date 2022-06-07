@@ -7,6 +7,7 @@ import os
 import glob
 import re
 import sys
+import shipyard_utils as shipyard
 
 import warnings
 warnings.simplefilter(action='ignore', category=UserWarning)
@@ -33,11 +34,10 @@ def get_args():
     parser.add_argument('--account', dest='account', required=True)
     parser.add_argument('--warehouse', dest='warehouse', required=False)
     parser.add_argument('--database', dest='database', required=False)
-    parser.add_argument(
-        '--schema',
-        dest='schema',
-        default=None,
-        required=False)
+    parser.add_argument('--schema',
+                        dest='schema',
+                        default=None,
+                        required=False)
     parser.add_argument('--source-file-name-match-type',
                         dest='source_file_name_match_type',
                         default='exact_match',
@@ -63,39 +63,6 @@ def get_args():
     args = parser.parse_args()
 
     return args
-
-
-def find_all_local_file_names(source_folder_name):
-    """
-    Returns a list of all files that exist in the current working directory,
-    filtered by source_folder_name if provided.
-    """
-    cwd = os.getcwd()
-    cwd_extension = os.path.normpath(f'{cwd}/{source_folder_name}/**')
-    file_names = glob.glob(cwd_extension, recursive=True)
-    return [file_name for file_name in file_names if os.path.isfile(file_name)]
-
-
-def find_all_file_matches(file_names, file_name_re):
-    """
-    Return a list of all file_names that matched the regular expression.
-    """
-    matching_file_names = []
-    for file in file_names:
-        if re.search(file_name_re, file):
-            matching_file_names.append(file)
-
-    return matching_file_names
-
-
-def combine_folder_and_file_name(folder_name, file_name):
-    """
-    Combine together the provided folder_name and file_name into one path variable.
-    """
-    combined_name = os.path.normpath(
-        f'{folder_name}{"/" if folder_name else ""}{file_name}')
-
-    return combined_name
 
 
 def upload_data(source_full_path, table_name, insert_method, db_connection):
@@ -165,7 +132,7 @@ def main():
     source_file_name_match_type = args.source_file_name_match_type
     source_file_name = args.source_file_name
     source_folder_name = args.source_folder_name
-    source_full_path = combine_folder_and_file_name(
+    source_full_path = shipyard.files.combine_folder_and_file_name(
         folder_name=source_folder_name, file_name=source_file_name)
     table_name = args.table_name
     insert_method = args.insert_method
@@ -208,8 +175,9 @@ def main():
         sys.exit(EXIT_CODE_UNKNOWN_ERROR)
 
     if source_file_name_match_type == 'regex_match':
-        file_names = find_all_local_file_names(source_folder_name)
-        matching_file_names = find_all_file_matches(
+        file_names = shipyard.files.find_all_local_file_names(
+            source_folder_name)
+        matching_file_names = shipyard.files.find_all_file_matches(
             file_names, re.compile(source_file_name))
         print(f'{len(matching_file_names)} files found. Preparing to upload...')
 

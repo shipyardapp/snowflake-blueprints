@@ -5,6 +5,7 @@ import os
 import pandas as pd
 from pandas.io.sql import DatabaseError
 import sys
+import shipyard_utils as shipyard
 
 EXIT_CODE_UNKNOWN_ERROR = 3
 EXIT_CODE_INVALID_CREDENTIALS = 200
@@ -39,28 +40,6 @@ def get_args():
                         required=False)
     args = parser.parse_args()
     return args
-
-
-def convert_to_boolean(string):
-    """
-    Shipyard can't support passing Booleans to code, so we have to convert
-    string values to their boolean values.
-    """
-    if string in ['True', 'true', 'TRUE']:
-        value = True
-    else:
-        value = False
-    return value
-
-
-def combine_folder_and_file_name(folder_name, file_name):
-    """
-    Combine together the provided folder_name and file_name into one path variable.
-    """
-    combined_name = os.path.normpath(
-        f'{folder_name}{"/" if folder_name else ""}{file_name}')
-
-    return combined_name
 
 
 def create_csv(query, db_connection, destination_file_path, file_header=True):
@@ -115,16 +94,6 @@ def validate_database(con, database):
     return
 
 
-def clean_folder_name(folder_name):
-    """
-    Cleans folders name by removing duplicate '/' as well as leading and trailing '/' characters.
-    """
-    folder_name = folder_name.strip('/')
-    if folder_name != '':
-        folder_name = os.path.normpath(folder_name)
-    return folder_name
-
-
 def main():
     args = get_args()
     username = args.username
@@ -135,10 +104,11 @@ def main():
     schema = args.schema
     query = args.query
     destination_file_name = args.destination_file_name
-    destination_folder_name = clean_folder_name(args.destination_folder_name)
-    destination_full_path = combine_folder_and_file_name(
+    destination_folder_name = shipyard.files.clean_folder_name(
+        args.destination_folder_name)
+    destination_full_path = shipyard.files.combine_folder_and_file_name(
         folder_name=destination_folder_name, file_name=destination_file_name)
-    file_header = convert_to_boolean(args.file_header)
+    file_header = shipyard.args.convert_to_boolean(args.file_header)
 
     try:
         con = snowflake.connector.connect(user=username, password=password,
