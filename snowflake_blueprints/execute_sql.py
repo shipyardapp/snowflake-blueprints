@@ -50,7 +50,7 @@ def main():
     try:
         con = snowflake.connector.connect(user=username, password=password,
                                           account=account, warehouse=warehouse,
-                                          database=database, schema=schema)
+                                          database=database, schema=schema, session_parameters={'MULTI_STATEMENT_COUNT':0})
         cur = con.cursor()
     except DatabaseError as db_e:
         if db_e.errno == 250001:
