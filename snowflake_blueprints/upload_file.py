@@ -93,7 +93,7 @@ def upload_data_with_put(source_full_path,
     except BaseException as e:
         print(e)
     if insert_method == 'replace':
-        db_connection.execute(f"TRUNCATE {table_name}")
+        db_connection.execute(f"TRUNCATE TABLE IF EXISTS {table_name}")
         db_connection.execute(f"PUT file://{source_full_path} @%{table_name}")
         db_connection.execute(
             f"copy into {table_name} FILE_FORMAT=(type=csv,SKIP_HEADER=1) PURGE=TRUE")
@@ -224,7 +224,7 @@ def main():
             database=args.database,
             schema=args.schema,
             warehouse=args.warehouse
-        ))
+        )).execution_options(autocommit=True)
         db_connection.connect()
     except DatabaseError as db_e:
         if 'Incorrect username or password' in str(db_e):
