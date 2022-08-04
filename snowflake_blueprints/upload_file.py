@@ -8,6 +8,9 @@ import glob
 import re
 import sys
 import shipyard_utils as shipyard
+import snowflake.connector
+from snowflake.connector.pandas_tools import pd_writer, write_pandas
+import time
 
 import warnings
 warnings.simplefilter(action='ignore', category=UserWarning)
@@ -60,12 +63,51 @@ def get_args():
             'append'},
         default='append',
         required=False)
+    parser.add_argument(
+        '--upload-method',
+        dest='upload_method',
+        choices={
+            'insert_statements',
+            'copy_into'},
+        default='copy_into',
+        required=False)
     args = parser.parse_args()
 
     return args
 
 
-def upload_data(source_full_path, table_name, insert_method, db_connection):
+def upload_data_with_put(source_full_path,
+                         table_name,
+                         insert_method,
+                         db_connection):
+
+    try:
+        chunksize = 10000
+        for index, chunk in enumerate(
+                pd.read_csv(source_full_path, chunksize=chunksize)):
+            chunk.head(0).to_sql(
+                table_name,
+                con=db_connection,
+                if_exists="fail",
+                index=False)
+    except BaseException as e:
+        print(e)
+    if insert_method == 'replace':
+        db_connection.execute(f"TRUNCATE {table_name}")
+        db_connection.execute(f"PUT file://{source_full_path} @%{table_name}")
+        db_connection.execute(
+            f"copy into {table_name} FILE_FORMAT=(type=csv,SKIP_HEADER=1) PURGE=TRUE")
+    elif insert_method == 'append':
+        db_connection.execute(f"PUT file://{source_full_path} @%{table_name}")
+        db_connection.execute(
+            f"copy into {table_name} FILE_FORMAT=(type=csv,SKIP_HEADER=1) PURGE=TRUE")
+
+
+def upload_data_with_write_pandas(
+        source_full_path,
+        table_name,
+        insert_method,
+        con):
     try:
         for index, chunk in enumerate(
                 pd.read_csv(source_full_path, chunksize=10000)):
@@ -75,13 +117,47 @@ def upload_data(source_full_path, table_name, insert_method, db_connection):
                 # append to the end.
                 insert_method = 'append'
 
-            chunk.to_sql(
-                table_name,
-                con=db_connection,
-                index=False,
-                if_exists=insert_method,
-                method='multi',
-                chunksize=10000)
+            chunk.columns = map(lambda x: str(x).upper(), chunk.columns)
+            write_pandas(conn=con, df=chunk, table_name=table_name)
+    except BaseException as e:
+        print(e)
+
+
+def upload_data(
+        source_full_path,
+        table_name,
+        insert_method,
+        db_connection,
+        upload_method):
+    try:
+        chunksize = 10000
+        for index, chunk in enumerate(
+                pd.read_csv(source_full_path, chunksize=chunksize)):
+
+            if insert_method == 'replace' and index > 0:
+                # First chunk replaces the table, the following chunks
+                # append to the end.
+                insert_method = 'append'
+
+            chunk.columns = map(lambda x: str(x).upper(), chunk.columns)
+            print(
+                f'Uploading rows {(chunksize*index)+1}-{chunksize * (index+1)}')
+            if upload_method == 'insert_statements':
+                chunk.to_sql(
+                    table_name,
+                    con=db_connection,
+                    index=False,
+                    if_exists=insert_method,
+                    method='multi',
+                    chunksize=10000)
+            elif upload_method == 'copy_into':
+                chunk.to_sql(
+                    table_name,
+                    con=db_connection,
+                    index=False,
+                    if_exists=insert_method,
+                    method=pd_writer,
+                    chunksize=10000)
     except DatabaseError as db_e:
         if 'No active warehouse' in str(db_e):
             print(
@@ -128,6 +204,8 @@ def upload_data(source_full_path, table_name, insert_method, db_connection):
 
 
 def main():
+    start = time.perf_counter()
+    print(start)
     args = get_args()
     source_file_name_match_type = args.source_file_name_match_type
     source_file_name = args.source_file_name
@@ -136,6 +214,7 @@ def main():
         folder_name=source_folder_name, file_name=source_file_name)
     table_name = args.table_name
     insert_method = args.insert_method
+    upload_method = args.upload_method
 
     try:
         db_connection = create_engine(URL(
@@ -186,13 +265,26 @@ def main():
                 source_full_path=key_name,
                 table_name=table_name,
                 insert_method=insert_method,
-                db_connection=db_connection)
+                db_connection=db_connection,
+                upload_method=upload_method)
 
     else:
-        upload_data(source_full_path=source_full_path, table_name=table_name,
-                    insert_method=insert_method, db_connection=db_connection)
+        # upload_data(
+        #     source_full_path=source_full_path,
+        #     table_name=table_name,
+        #     insert_method=insert_method,
+        #     db_connection=db_connection,
+        #     upload_method=upload_method)
+        upload_data_with_put(
+            source_full_path,
+            table_name,
+            insert_method,
+            db_connection)
 
     db_connection.dispose()
+    finish = time.perf_counter()
+    print(finish)
+    print(f'It took {finish - start} seconds to upload 10mb of data, using the put upload method and a chunksize of 10k.')
 
 
 if __name__ == '__main__':
