@@ -90,6 +90,9 @@ def upload_data_with_put(source_full_path,
                 con=db_connection,
                 if_exists="fail",
                 index=False)
+            # prevents a loop that was necessary for loading only a small chunk
+            # of the data in.
+            break
     except BaseException as e:
         print(e)
     if insert_method == 'replace':
@@ -269,22 +272,23 @@ def main():
                 upload_method=upload_method)
 
     else:
-        # upload_data(
-        #     source_full_path=source_full_path,
-        #     table_name=table_name,
-        #     insert_method=insert_method,
-        #     db_connection=db_connection,
-        #     upload_method=upload_method)
-        upload_data_with_put(
-            source_full_path,
-            table_name,
-            insert_method,
-            db_connection)
+        upload_data(
+            source_full_path=source_full_path,
+            table_name=table_name,
+            insert_method=insert_method,
+            db_connection=db_connection,
+            upload_method=upload_method)
+        # upload_data_with_put(
+        #     source_full_path,
+        #     table_name,
+        #     insert_method,
+        #     db_connection)
 
     db_connection.dispose()
     finish = time.perf_counter()
     print(finish)
-    print(f'It took {finish - start} seconds to upload 10mb of data, using the put upload method and a chunksize of 10k.')
+    print(
+        f'It took {finish - start} seconds to upload 1gb of data, using the insert method and a chunksize of 10k.')
 
 
 if __name__ == '__main__':
