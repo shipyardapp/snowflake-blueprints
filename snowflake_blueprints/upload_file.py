@@ -76,11 +76,7 @@ def get_args():
     return args
 
 
-def upload_data_with_put(source_full_path,
-                         table_name,
-                         insert_method,
-                         db_connection):
-
+def create_table(source_full_path, table_name, db_connection):
     try:
         chunksize = 10000
         for index, chunk in enumerate(
@@ -95,15 +91,27 @@ def upload_data_with_put(source_full_path,
             break
     except BaseException as e:
         print(e)
+
+
+def upload_data_with_put(source_full_path,
+                         table_name,
+                         insert_method,
+                         db_connection):
     if insert_method == 'replace':
-        db_connection.execute(f"TRUNCATE TABLE IF EXISTS {table_name}")
-        db_connection.execute(f"PUT file://{source_full_path} @%{table_name}")
+        db_connection.execute(f'DROP TABLE IF EXISTS "{table_name}"')
+        print('table was dropped')
+        create_table(source_full_path, table_name, db_connection)
         db_connection.execute(
-            f"copy into {table_name} FILE_FORMAT=(type=csv,SKIP_HEADER=1) PURGE=TRUE")
+            f'PUT file://{source_full_path} @%"{table_name}"')
+        print('file was put')
+        db_connection.execute(
+            f'copy into "{table_name}" FILE_FORMAT=(type=csv,SKIP_HEADER=1) PURGE=TRUE')
+        print('file was copied')
     elif insert_method == 'append':
-        db_connection.execute(f"PUT file://{source_full_path} @%{table_name}")
         db_connection.execute(
-            f"copy into {table_name} FILE_FORMAT=(type=csv,SKIP_HEADER=1) PURGE=TRUE")
+            f'PUT file://{source_full_path} @%"{table_name}"')
+        db_connection.execute(
+            f'copy into "{table_name}" FILE_FORMAT=(type=csv,SKIP_HEADER=1) PURGE=TRUE')
 
 
 def upload_data_with_write_pandas(
@@ -132,7 +140,24 @@ def upload_data(
         insert_method,
         db_connection,
         upload_method):
+    # Try to use put method initially.
     try:
+        print('Attempting upload with put method')
+        upload_data_with_put(source_full_path,
+                             table_name,
+                             insert_method,
+                             db_connection)
+        print(f'{source_full_path} successfully {insert_method}{"ed to " if insert_method == "append" else "d "}the table {table_name}.')
+        return
+    except BaseException as e:
+        print('Put method failed.')
+        print(e)
+        pass
+
+    # If the put method fails, fall back to the original multi-insert
+    # statement method.
+    try:
+        print('Attempting upload with insert method')
         chunksize = 10000
         for index, chunk in enumerate(
                 pd.read_csv(source_full_path, chunksize=chunksize)):
@@ -208,13 +233,14 @@ def upload_data(
 
 def main():
     start = time.perf_counter()
-    print(start)
+    # print(start)
     args = get_args()
     source_file_name_match_type = args.source_file_name_match_type
     source_file_name = args.source_file_name
     source_folder_name = args.source_folder_name
     source_full_path = shipyard.files.combine_folder_and_file_name(
         folder_name=source_folder_name, file_name=source_file_name)
+    print(source_full_path)
     table_name = args.table_name
     insert_method = args.insert_method
     upload_method = args.upload_method
@@ -285,10 +311,6 @@ def main():
         #     db_connection)
 
     db_connection.dispose()
-    finish = time.perf_counter()
-    print(finish)
-    print(
-        f'It took {finish - start} seconds to upload 1gb of data, using the insert method and a chunksize of 10k.')
 
 
 if __name__ == '__main__':
