@@ -60,6 +60,10 @@ def get_args():
 
 
 def create_table(source_full_path, table_name, insert_method, db_connection):
+    """
+    Creates a table by looking at the schema of the first 10k rows and only loading the header row.
+    Used by the new PUT method because you can't PUT or COPY INTO if the table doesn't exist beforehand.
+    """
     try:
         chunksize = 10000
         for index, chunk in enumerate(
@@ -98,6 +102,9 @@ def convert_to_parquet(source_full_path, table_name):
 
 
 def execute_put_command(db_connection, file_path, table_name, results_dict):
+    """
+    Execute the PUT command against Snowflake and store the results.
+    """
     put = db_connection.execute(f'PUT file://{file_path}/* @%"{table_name}"')
     for item in put:
         # These are guesses. The documentation doesn't specify.
@@ -115,6 +122,9 @@ def execute_put_command(db_connection, file_path, table_name, results_dict):
 
 
 def execute_drop_command(db_connection, table_name, results_dict):
+    """
+    Execute the DROP command against Snowflake and store the results.
+    """
     drop = db_connection.execute(f'DROP TABLE IF EXISTS "{table_name}"')
     for item in drop:
         drop_results = {"message": item[0]}
@@ -123,6 +133,9 @@ def execute_drop_command(db_connection, table_name, results_dict):
 
 
 def execute_copyinto_command(db_connection, table_name, results_dict):
+    """
+    Execute the COPY INTO command against Snowflake and store the results.
+    """
     copy = db_connection.execute(
         f'copy into "{table_name}" FILE_FORMAT=(type=PARQUET) PURGE=TRUE MATCH_BY_COLUMN_NAME=CASE_INSENSITIVE')
     for item in copy:
@@ -181,6 +194,9 @@ def upload_data_with_insert(source_full_path,
                             table_name,
                             insert_method,
                             db_connection):
+    """
+    Upload the data using pandas.to_sql which creates multiple INSERT statements.
+    """
     print('Attempting upload with insert method')
     chunksize = 10000
     for index, chunk in enumerate(
@@ -207,6 +223,9 @@ def upload_data(
         table_name,
         insert_method,
         db_connection):
+    """
+    Upload the data to Snowflake. Tries the PUT method first, then relies on INSERT as a backup.
+    """
     # Try to use put method initially.
     try:
         snowflake_results = upload_data_with_put(source_full_path,
