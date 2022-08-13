@@ -99,11 +99,56 @@ def convert_to_parquet(source_full_path, table_name):
     Uses fastest tested method with Dask and gzip (Snowflake recommendation)
     Parquet files allows for column name mapping.
     """
-    parquet_path = f'/tmp/{table_name}'
+    parquet_path = f'./tmp/{table_name}'
+    shipyard.files.create_folder_if_dne(parquet_path)
     df = dd.read_csv(source_full_path)
     df.columns = map(lambda x: str(x).upper(), df.columns)
     df.to_parquet(parquet_path, compression='gzip', write_index=False)
     return parquet_path
+
+
+def execute_put_command(db_connection, file_path, table_name, results_dict):
+    put = db_connection.execute(f'PUT file://{file_path}/* @%"{table_name}"')
+    for item in put:
+        # These are guesses. The documentation doesn't specify.
+        put_results = {
+            "input_file_name": item[0],
+            "uploaded_file_name": item[1],
+            "input_bytes": item[2],
+            "uploaded_bytes": item[3],
+            "input_file_type": item[4],
+            "uploaded_file_type": item[5],
+            "status": item[6],
+            "unknown": item[7]}
+        results_dict['put'].append(put_results)
+    return results_dict
+
+
+def execute_drop_command(db_connection, table_name, results_dict):
+    drop = db_connection.execute(f'DROP TABLE IF EXISTS "{table_name}"')
+    for item in drop:
+        drop_results = {"message": item[0]}
+        results_dict['drop'].append(drop_results)
+    return results_dict
+
+
+def execute_copyinto_command(db_connection, table_name, results_dict):
+    copy = db_connection.execute(
+        f'copy into "{table_name}" FILE_FORMAT=(type=PARQUET) PURGE=TRUE MATCH_BY_COLUMN_NAME=CASE_INSENSITIVE')
+    for item in copy:
+        copy_results = {
+            "file": item[0],
+            "status": item[1],
+            "rows_parsed": item[2],
+            "rows_loaded": item[3],
+            "error_limit": item[4],
+            "errors_seen": item[5],
+            "first_error": item[6],
+            "first_error_line": item[7],
+            "first_error_character": item[8],
+            "first_error_column_name": item[9]}
+        results_dict['copy'].append(copy_results)
+    return results_dict
 
 
 def upload_data_with_put(source_full_path,
@@ -115,34 +160,31 @@ def upload_data_with_put(source_full_path,
     """
     parquet_path = convert_to_parquet(source_full_path, table_name)
     print('Attempting upload with put method')
+    snowflake_results = {"put": [], "copy": [], "drop": []}
     if insert_method == 'replace':
-        drop = db_connection.execute(f'DROP TABLE IF EXISTS "{table_name}"')
+        snowflake_results = execute_drop_command(
+            db_connection, table_name, snowflake_results)
         create_table(
             source_full_path,
             table_name,
             insert_method,
             db_connection)
-        put = db_connection.execute(
-            f'PUT file://{parquet_path}/* @%"{table_name}"')
-        copy = db_connection.execute(
-            f'copy into "{table_name}" FILE_FORMAT=(type=PARQUET) PURGE=TRUE MATCH_BY_COLUMN_NAME=CASE_INSENSITIVE')
-        for item in drop:
-            print(item[0])
-        for item in put:
-            print(item)
-        for item in copy:
-            print(item)
+        snowflake_results = execute_put_command(
+            db_connection, parquet_path, table_name, snowflake_results)
+        snowflake_results = execute_copyinto_command(
+            db_connection, table_name, snowflake_results)
     elif insert_method == 'append':
         create_table(
             source_full_path,
             table_name,
             insert_method,
             db_connection)
-        db_connection.execute(
-            f'PUT file://{parquet_path}/* @%"{table_name}"')
-        db_connection.execute(
-            f'copy into "{table_name}" FILE_FORMAT=(type=PARQUET) PURGE=TRUE MATCH_BY_COLUMN_NAME=CASE_INSENSITIVE')
+        snowflake_results = execute_put_command(
+            db_connection, parquet_path, table_name, snowflake_results)
+        snowflake_results = execute_copyinto_command(
+            db_connection, table_name, snowflake_results)
     print(f'{source_full_path} successfully {insert_method}{"ed to " if insert_method == "append" else "d "}the table {table_name}.')
+    return snowflake_results
 
 
 def upload_data_with_insert(source_full_path,
@@ -177,12 +219,12 @@ def upload_data(
         db_connection):
     # Try to use put method initially.
     try:
-        upload_data_with_put(source_full_path,
-                             table_name,
-                             insert_method,
-                             db_connection)
+        snowflake_results = upload_data_with_put(source_full_path,
+                                                 table_name,
+                                                 insert_method,
+                                                 db_connection)
         # Needed to prevent other try from running if this is successful.
-        return
+        return snowflake_results
     except BaseException as e:
         print('Put method failed.')
         print(e)
@@ -295,18 +337,30 @@ def main():
         print(f'{len(matching_file_names)} files found. Preparing to upload...')
 
         for index, key_name in enumerate(matching_file_names):
-            upload_data(
+            snowflake_results = upload_data(
                 source_full_path=key_name,
                 table_name=table_name,
                 insert_method=insert_method,
                 db_connection=db_connection)
 
     else:
-        upload_data(
+        snowflake_results = upload_data(
             source_full_path=source_full_path,
             table_name=table_name,
             insert_method=insert_method,
             db_connection=db_connection)
+
+    # create artifacts folder to save responses
+    base_folder_name = shipyard.logs.determine_base_artifact_folder(
+        'snowflake')
+    artifact_subfolder_paths = shipyard.logs.determine_artifact_subfolders(
+        base_folder_name)
+    shipyard.logs.create_artifacts_folders(artifact_subfolder_paths)
+    snowflake_upload_response_path = shipyard.files.combine_folder_and_file_name(
+        artifact_subfolder_paths['responses'], f'upload_{table_name}_response.json')
+    shipyard.files.write_json_to_file(
+        snowflake_results,
+        snowflake_upload_response_path)
 
     db_connection.dispose()
 
