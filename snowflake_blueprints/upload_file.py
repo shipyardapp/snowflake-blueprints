@@ -234,7 +234,23 @@ def upload_data(
                                                  db_connection)
         # Needed to prevent other try from running if this is successful.
         return snowflake_results
+    except ProgrammingError as pg_e:
+        if 'This session does not have a current schema.' in str(pg_e):
+            print(f'The schema provided either does not exist or your user does not have access to it. If no schema was provided, no default schema exists.')
+            print(pg_e)
+            sys.exit(errors.EXIT_CODE_INVALID_SCHEMA)
+        if 'This session does not have a current database.' in str(pg_e):
+            print(
+                f'The database provided either does not exist or your user does not have access to it. If no database was provided, this user does not have a default warehouse.')
+            print(pg_e)
+            sys.exit(errors.EXIT_CODE_INVALID_DATABASE)
+        print(pg_e)
     except BaseException as e:
+        if 'No such file or directory:' in str(e):
+            print(
+                f'The combination of folder name/file name that you provided ({source_full_path}) could not be found. Please check for typos and try again.')
+            print(e)
+            sys.exit(errors.EXIT_CODE_FILE_NOT_FOUND)
         print('Put method failed.')
         print(e)
         pass
@@ -276,11 +292,6 @@ def upload_data(
         print(db_e.orig)  # Avoids printing data to console
         sys.exit(errors.EXIT_CODE_UNKNOWN_ERROR)
     except Exception as e:
-        if 'No such file or directory:' in str(e):
-            print(
-                f'The combination of folder name/file name that you provided ({source_full_path}) could not be found. Please check for typos and try again.')
-            print(e)
-            sys.exit(errors.EXIT_CODE_FILE_NOT_FOUND)
         if 'C error: Expected' and 'fields' and 'saw' in str(e):
             print('File contents don\'t match the provided headers. One or more rows contain more columns than expected.')
             print(e)
@@ -329,7 +340,7 @@ def main():
             print(dbapi_e)
             sys.exit(errors.EXIT_CODE_INVALID_ACCOUNT)
         print(dbapi_e)
-        sys.exit(EXIT_CODE_UNKNOWN_ERROR)
+        sys.exit(errors.EXIT_CODE_UNKNOWN_ERROR)
     except Exception as e:
         if 'quote_from_bytes() expected bytes' in str(e):
             print(f'The schema provided either does not exist or your user does not have access to it. If no schema was provided, no default schema exists.')
