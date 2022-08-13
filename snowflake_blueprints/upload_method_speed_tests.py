@@ -1,16 +1,10 @@
 from snowflake.connector.pandas_tools import pd_writer, write_pandas
-from sqlalchemy.exc import DatabaseError, DBAPIError, ProgrammingError
 import pandas as pd
 from sqlalchemy import create_engine
 from snowflake.sqlalchemy import URL
 import argparse
-import os
-import glob
-import re
-import sys
 import shipyard_utils as shipyard
 import time
-import code
 import pyarrow as pa
 import pyarrow.parquet as pq
 import pyarrow.csv
@@ -40,8 +34,6 @@ def get_args():
                         default='output.csv', required=True)
     parser.add_argument('--source-folder-name',
                         dest='source_folder_name', default='', required=False)
-    # parser.add_argument('--table-name', dest='table_name', default=None,
-    #                     required=True)
     parser.add_argument(
         '--insert-method',
         dest='insert_method',
@@ -335,7 +327,6 @@ def main():
     source_full_path = shipyard.files.combine_folder_and_file_name(
         folder_name=source_folder_name, file_name=source_file_name)
     print(source_full_path)
-    # table_name = args.table_name
     insert_method = args.insert_method
 
     db_connection = create_engine(URL(
@@ -348,10 +339,10 @@ def main():
     )).execution_options(autocommit=True)
     db_connection.connect()
 
-    # method_1(source_full_path=source_full_path,
-    #          table_name=f'METHOD_1_{DATA_SIZE}',
-    #          insert_method=insert_method,
-    #          db_connection=db_connection)
+    method_1(source_full_path=source_full_path,
+             table_name=f'METHOD_1_{DATA_SIZE}',
+             insert_method=insert_method,
+             db_connection=db_connection)
     method_2(source_full_path=source_full_path,
              table_name=f'METHOD_2_{DATA_SIZE}',
              insert_method=insert_method,
@@ -364,14 +355,14 @@ def main():
              table_name=f'METHOD_4_{DATA_SIZE}',
              insert_method=insert_method,
              db_connection=db_connection)
-    # method_5(source_full_path=source_full_path,
-    #          table_name=f'METHOD_5_{DATA_SIZE}',
-    #          insert_method=insert_method,
-    #          db_connection=db_connection)
-    # method_6(source_full_path=source_full_path,
-    #          table_name=f'METHOD_6_{DATA_SIZE}',
-    #          insert_method=insert_method,
-    #          db_connection=db_connection)
+    method_5(source_full_path=source_full_path,
+             table_name=f'METHOD_5_{DATA_SIZE}',
+             insert_method=insert_method,
+             db_connection=db_connection)
+    method_6(source_full_path=source_full_path,
+             table_name=f'METHOD_6_{DATA_SIZE}',
+             insert_method=insert_method,
+             db_connection=db_connection)
 
 
 if __name__ == '__main__':
