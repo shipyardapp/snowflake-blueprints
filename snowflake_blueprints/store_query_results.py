@@ -7,14 +7,10 @@ from pandas.io.sql import DatabaseError
 import sys
 import shipyard_utils as shipyard
 
-EXIT_CODE_UNKNOWN_ERROR = 3
-EXIT_CODE_INVALID_CREDENTIALS = 200
-EXIT_CODE_INVALID_ACCOUNT = 201
-EXIT_CODE_INVALID_WAREHOUSE = 202
-EXIT_CODE_INVALID_DATABASE = 203
-EXIT_CODE_INVALID_SCHEMA = 204
-EXIT_CODE_INVALID_QUERY = 205
-EXIT_CODE_NO_RESULTS = 206
+try:
+    import errors
+except BaseException:
+    from . import errors
 
 
 def get_args():
@@ -50,15 +46,19 @@ def create_csv(query, db_connection, destination_file_path, file_header=True):
     try:
         for chunk in pd.read_sql_query(query, db_connection, chunksize=10000):
             if i == 1:
-                chunk.to_csv(destination_file_path, mode='a',
-                             header=file_header, index=False)
+                if len(chunk) == 0:
+                    print('Query did not return with any data, so no file was created.')
+                    sys.exit(errors.EXIT_CODE_NO_RESULTS)
+                else:
+                    chunk.to_csv(destination_file_path, mode='a',
+                                 header=file_header, index=False)
             else:
                 chunk.to_csv(destination_file_path, mode='a',
                              header=False, index=False)
             i += 1
         if not os.path.exists(destination_file_path):
             print('Query did not return with any data, so no file was created.')
-            sys.exit(EXIT_CODE_NO_RESULTS)
+            sys.exit(errors.EXIT_CODE_NO_RESULTS)
         else:
             print(
                 f'Successfully stored query results as {destination_file_path}')
@@ -67,18 +67,18 @@ def create_csv(query, db_connection, destination_file_path, file_header=True):
             print(
                 f'The warehouse provided either does not exist or your user does not have access to it. If no warehouse was provided, this user does not have a default warehouse.')
             print(db_e)
-            sys.exit(EXIT_CODE_INVALID_WAREHOUSE)
+            sys.exit(errors.EXIT_CODE_INVALID_WAREHOUSE)
         if 'SQL compilation error' in str(db_e):
             print('Your SQL contains an error. Check for typos and try again.')
             print(db_e)
-            sys.exit(EXIT_CODE_INVALID_QUERY)
+            sys.exit(errors.EXIT_CODE_INVALID_QUERY)
         print('Failed to create a file with data.')
         print(db_e)
-        sys.exit(EXIT_CODE_UNKNOWN_ERROR)
+        sys.exit(errors.EXIT_CODE_UNKNOWN_ERROR)
     except Exception as e:
         print('Failed to create a file with data.')
         print(e)
-        sys.exit(EXIT_CODE_UNKNOWN_ERROR)
+        sys.exit(errors.EXIT_CODE_UNKNOWN_ERROR)
     return
 
 
