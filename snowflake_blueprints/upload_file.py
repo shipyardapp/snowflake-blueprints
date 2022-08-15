@@ -115,8 +115,7 @@ def execute_put_command(db_connection, file_path, table_name, results_dict):
             "uploaded_bytes": item[3],
             "input_file_type": item[4],
             "uploaded_file_type": item[5],
-            "status": item[6],
-            "unknown": item[7]}
+            "status": item[6]}
         results_dict['put'].append(put_results)
     return results_dict
 
@@ -137,7 +136,7 @@ def execute_copyinto_command(db_connection, table_name, results_dict):
     Execute the COPY INTO command against Snowflake and store the results.
     """
     copy = db_connection.execute(
-        f'copy into "{table_name}" FILE_FORMAT=(type=PARQUET) PURGE=TRUE MATCH_BY_COLUMN_NAME=CASE_INSENSITIVE')
+        f'COPY INTO "{table_name}" FILE_FORMAT=(type=PARQUET) PURGE=TRUE MATCH_BY_COLUMN_NAME=CASE_INSENSITIVE')
     for item in copy:
         copy_results = {
             "file": item[0],
@@ -320,7 +319,7 @@ def main():
             database=args.database,
             schema=args.schema,
             warehouse=args.warehouse
-        )).execution_options(autocommit=True)
+        ))
         db_connection.connect()
     except DatabaseError as db_e:
         if 'Incorrect username or password' in str(db_e):
