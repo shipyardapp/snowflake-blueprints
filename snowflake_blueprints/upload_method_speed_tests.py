@@ -48,14 +48,14 @@ def get_args():
     return args
 
 
-def start_timer(method_number):
+def start_timer(method_name):
     print(f'Starting method {method_number}')
     start = time.perf_counter()
     print(start)
     return start
 
 
-def end_timer(start, method_number):
+def end_timer(start, method_name):
     finish = time.perf_counter()
     print(finish)
     print(
@@ -80,10 +80,10 @@ def create_table(source_full_path, table_name, db_connection):
         print(e)
 
 
-def method_1(source_full_path,
-             table_name,
-             insert_method,
-             db_connection):
+def method_csv_put_copy(source_full_path,
+                        table_name,
+                        insert_method,
+                        db_connection):
     # PUT/COPY INTO CSV
 
     ###
@@ -94,7 +94,7 @@ def method_1(source_full_path,
     # 1GB Deep = 289.085156788
     # 1GB Wide = 302.586698846
     ###
-    start = start_timer('1')
+    start = start_timer('put_copy_csv')
     if insert_method == 'replace':
         db_connection.execute(f'DROP TABLE IF EXISTS "{table_name}"')
         print('table was dropped')
@@ -111,13 +111,13 @@ def method_1(source_full_path,
             f'PUT file://{source_full_path} @%"{table_name}"')
         db_connection.execute(
             f'copy into "{table_name}" FILE_FORMAT=(type=csv,SKIP_HEADER=1) PURGE=TRUE')
-    finish = end_timer(start, '1')
+    finish = end_timer(start, 'put_copy_csv')
 
 
-def method_2(source_full_path,
-             table_name,
-             insert_method,
-             db_connection):
+def method_pandas_parquet_put_copy(source_full_path,
+                                   table_name,
+                                   insert_method,
+                                   db_connection):
     # Convert CSV to Parquet using Pandas Chunks
     # PUT/COPY INTO Parquet
 
@@ -129,12 +129,13 @@ def method_2(source_full_path,
     # 1GB Deep = 496.87234893600004
     # 1GB Wide = 2625.591407008
     ###
-    start = start_timer('2')
+    start = start_timer('pandas_parquet_put_copy')
 
     chunksize = 10000
     for index, chunk in enumerate(
             pd.read_csv(source_full_path, chunksize=chunksize)):
-        chunk.to_parquet(f'/tmp/method2_{index}.parquet')
+        chunk.to_parquet(
+            f'/tmp/method_pyarrow_parquet_put_copy_{index}.parquet')
 
     # code.interact(local=locals())
     if insert_method == 'replace':
@@ -142,7 +143,7 @@ def method_2(source_full_path,
         print('table was dropped')
         create_table(source_full_path, table_name, db_connection)
         db_connection.execute(
-            f'PUT file:///tmp/method2_* @%"{table_name}"')
+            f'PUT file:///tmp/method_pandas_parquet_put_copy_* @%"{table_name}"')
         print('file was put')
         db_connection.execute(
             f'copy into "{table_name}" FILE_FORMAT=(type=PARQUET) PURGE=TRUE MATCH_BY_COLUMN_NAME=CASE_INSENSITIVE')
@@ -150,16 +151,16 @@ def method_2(source_full_path,
     elif insert_method == 'append':
         create_table(source_full_path, table_name, db_connection)
         db_connection.execute(
-            f'PUT file:///tmp/method2_* @%"{table_name}"')
+            f'PUT file:///tmp/method_pandas_parquet_put_copy_* @%"{table_name}"')
         db_connection.execute(
             f'copy into "{table_name}" FILE_FORMAT=(type=PARQUET) PURGE=TRUE MATCH_BY_COLUMN_NAME=CASE_INSENSITIVE')
-    finish = end_timer(start, '2')
+    finish = end_timer(start, 'pandas_parquet_put_copy')
 
 
-def method_3(source_full_path,
-             table_name,
-             insert_method,
-             db_connection):
+def method_pyarrow_parquet_put_copy(source_full_path,
+                                    table_name,
+                                    insert_method,
+                                    db_connection):
     # Convert CSV to Parquet using PyArrow
     # PUT/COPY INTO Parquet
 
@@ -171,7 +172,7 @@ def method_3(source_full_path,
     # 1GB Deep = 431.47511402299995
     # 1GB Wide = 2012.2350292660003
     ###
-    start = start_timer('3')
+    start = start_timer('pyarrow_parquet_put_copy')
 
     writer = None
     with pyarrow.csv.open_csv(source_full_path) as reader:
@@ -180,7 +181,8 @@ def method_3(source_full_path,
                 break
             if writer is None:
                 writer = pq.ParquetWriter(
-                    '/tmp/method3_.parquet', next_chunk.schema)
+                    '/tmp/method_pyarrow_parquet_put_copy_.parquet',
+                    next_chunk.schema)
             next_table = pa.Table.from_batches([next_chunk])
             writer.write_table(next_table)
     writer.close()
@@ -191,7 +193,7 @@ def method_3(source_full_path,
         print('table was dropped')
         create_table(source_full_path, table_name, db_connection)
         db_connection.execute(
-            f'PUT file:///tmp/method3_* @%"{table_name}"')
+            f'PUT file:///tmp/method_pyarrow_parquet_put_copy_* @%"{table_name}"')
         print('file was put')
         db_connection.execute(
             f'copy into "{table_name}" FILE_FORMAT=(type=PARQUET) PURGE=TRUE MATCH_BY_COLUMN_NAME=CASE_INSENSITIVE')
@@ -199,16 +201,16 @@ def method_3(source_full_path,
     elif insert_method == 'append':
         create_table(source_full_path, table_name, db_connection)
         db_connection.execute(
-            f'PUT file:///tmp/method3_* @%"{table_name}"')
+            f'PUT file:///tmp/method_pyarrow_parquet_put_copy* @%"{table_name}"')
         db_connection.execute(
             f'copy into "{table_name}" FILE_FORMAT=(type=PARQUET) PURGE=TRUE MATCH_BY_COLUMN_NAME=CASE_INSENSITIVE')
-    finish = end_timer(start, '3')
+    finish = end_timer(start, 'pyarrow_parquet_put_copy')
 
 
-def method_4(source_full_path,
-             table_name,
-             insert_method,
-             db_connection):
+def method_dask_parquet_put_copy(source_full_path,
+                                 table_name,
+                                 insert_method,
+                                 db_connection):
     # Convert CSV to Parquet using Dask
     # PUT/COPY INTO Parquet
 
@@ -220,10 +222,10 @@ def method_4(source_full_path,
     # 1GB Deep = 350.3969153579999
     # 1GB Wide = 799.4128316380002
     ###
-    start = start_timer('4')
+    start = start_timer('dask_parquet_put_copy')
 
     df = dd.read_csv(source_full_path)
-    df.to_parquet(f'/tmp/method4', write_index=False)
+    df.to_parquet(f'/tmp/method_dask_parquet_put_copy', write_index=False)
 
     # code.interact(local=locals())
     if insert_method == 'replace':
@@ -231,7 +233,7 @@ def method_4(source_full_path,
         print('table was dropped')
         create_table(source_full_path, table_name, db_connection)
         db_connection.execute(
-            f'PUT file:///tmp/method4/* @%"{table_name}"')
+            f'PUT file:///tmp/method_dask_parquet_put_copy/* @%"{table_name}"')
         print('file was put')
         db_connection.execute(
             f'copy into "{table_name}" FILE_FORMAT=(type=PARQUET) PURGE=TRUE MATCH_BY_COLUMN_NAME=CASE_INSENSITIVE')
@@ -239,17 +241,17 @@ def method_4(source_full_path,
     elif insert_method == 'append':
         create_table(source_full_path, table_name, db_connection)
         db_connection.execute(
-            f'PUT file:///tmp/method4/* @%"{table_name}"')
+            f'PUT file:///tmp/method_dask_parquet_put_copy/* @%"{table_name}"')
         db_connection.execute(
             f'copy into "{table_name}" FILE_FORMAT=(type=PARQUET) PURGE=TRUE MATCH_BY_COLUMN_NAME=CASE_INSENSITIVE')
-    finish = end_timer(start, '4')
+    finish = end_timer(start, 'dask_parquet_put_copy')
 
 
-def method_5(source_full_path,
-             table_name,
-             insert_method,
-             db_connection):
-    start = start_timer('5')
+def method_pandas_tosql_pdwriter(source_full_path,
+                                 table_name,
+                                 insert_method,
+                                 db_connection):
+    start = start_timer('pandas_tosql_pdwriter')
     # Existing to_sql method with 'multi' insert statements
 
     ###
@@ -279,13 +281,13 @@ def method_5(source_full_path,
             if_exists=insert_method,
             method=pd_writer,
             chunksize=10000)
-    finish = end_timer(start, '5')
+    finish = end_timer(start, 'pandas_tosql_pdwriter')
 
 
-def method_6(source_full_path,
-             table_name,
-             insert_method,
-             db_connection):
+def method_pandas_tosql_multi(source_full_path,
+                              table_name,
+                              insert_method,
+                              db_connection):
 
     # Existing to_sql method with 'multi' insert statements
 
@@ -297,7 +299,7 @@ def method_6(source_full_path,
     # 1GB = DNT
     # 1GB Wide = DNF
     ###
-    start = start_timer('6')
+    start = start_timer('pandas_tosql_multi')
     chunksize = 10000
     for index, chunk in enumerate(
             pd.read_csv(source_full_path, chunksize=chunksize)):
@@ -317,7 +319,7 @@ def method_6(source_full_path,
             if_exists=insert_method,
             method='multi',
             chunksize=10000)
-    finish = end_timer(start, '6')
+    finish = end_timer(start, 'pandas_tosql_multi')
 
 
 def main():
@@ -339,30 +341,35 @@ def main():
     )).execution_options(autocommit=True)
     db_connection.connect()
 
-    method_1(source_full_path=source_full_path,
-             table_name=f'METHOD_1_{DATA_SIZE}',
-             insert_method=insert_method,
-             db_connection=db_connection)
-    method_2(source_full_path=source_full_path,
-             table_name=f'METHOD_2_{DATA_SIZE}',
-             insert_method=insert_method,
-             db_connection=db_connection)
-    method_3(source_full_path=source_full_path,
-             table_name=f'METHOD_3_{DATA_SIZE}',
-             insert_method=insert_method,
-             db_connection=db_connection)
-    method_4(source_full_path=source_full_path,
-             table_name=f'METHOD_4_{DATA_SIZE}',
-             insert_method=insert_method,
-             db_connection=db_connection)
-    method_5(source_full_path=source_full_path,
-             table_name=f'METHOD_5_{DATA_SIZE}',
-             insert_method=insert_method,
-             db_connection=db_connection)
-    method_6(source_full_path=source_full_path,
-             table_name=f'METHOD_6_{DATA_SIZE}',
-             insert_method=insert_method,
-             db_connection=db_connection)
+    method_csv_put_copy(source_full_path=source_full_path,
+                        table_name=f'METHOD_CSV_PUT_COPY_{DATA_SIZE}',
+                        insert_method=insert_method,
+                        db_connection=db_connection)
+    method_pandas_parquet_put_copy(
+        source_full_path=source_full_path,
+        table_name=f'METHOD_PANDAS_PARQUET_PUT_COPY_{DATA_SIZE}',
+        insert_method=insert_method,
+        db_connection=db_connection)
+    method_pyarrow_parquet_put_copy(
+        source_full_path=source_full_path,
+        table_name=f'METHOD_PYARROW_PARQUET_PUT_COPY_{DATA_SIZE}',
+        insert_method=insert_method,
+        db_connection=db_connection)
+    method_dask_parquet_put_copy(
+        source_full_path=source_full_path,
+        table_name=f'METHOD_DASK_PARQUET_PUT_COPY_{DATA_SIZE}',
+        insert_method=insert_method,
+        db_connection=db_connection)
+    method_pandas_tosql_pdwriter(
+        source_full_path=source_full_path,
+        table_name=f'METHOD_PANDAS_TOSQL_PDWRITER_{DATA_SIZE}',
+        insert_method=insert_method,
+        db_connection=db_connection)
+    method_pandas_tosql_multi(
+        source_full_path=source_full_path,
+        table_name=f'METHOD_PANDAS_TOSQL_MULTI_{DATA_SIZE}',
+        insert_method=insert_method,
+        db_connection=db_connection)
 
 
 if __name__ == '__main__':
