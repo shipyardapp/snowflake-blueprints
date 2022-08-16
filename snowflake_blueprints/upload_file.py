@@ -238,6 +238,8 @@ def upload_data(
                                                  db_connection)
 
         # create artifacts folder to save responses
+        # TODO Both errors and successes need to be returned and printed out afterwards.
+        # Didn't build this in initially for simplicity of getting the backup old method working.
         base_folder_name = shipyard.logs.determine_base_artifact_folder(
             'snowflake')
         artifact_subfolder_paths = shipyard.logs.determine_artifact_subfolders(
