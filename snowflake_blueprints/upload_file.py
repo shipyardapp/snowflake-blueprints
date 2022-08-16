@@ -93,7 +93,7 @@ def convert_to_parquet(source_full_path, table_name):
     Uses fastest tested method with Dask and gzip (Snowflake recommendation)
     Parquet files allows for column name mapping.
     """
-    parquet_path = f'./tmp/{table_name}'
+    parquet_path = f'/tmp/{table_name}'
     shipyard.files.create_folder_if_dne(parquet_path)
     df = dd.read_csv(source_full_path)
     df.columns = map(lambda x: str(x).upper(), df.columns)
