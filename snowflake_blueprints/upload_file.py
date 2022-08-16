@@ -137,6 +137,7 @@ def execute_copyinto_command(db_connection, table_name, results_dict):
     """
     Execute the COPY INTO command against Snowflake and store the results.
     """
+    print(f'copying into {table_name}')
     copy = db_connection.execute(
         f'COPY INTO "{table_name}" FILE_FORMAT=(type=PARQUET) PURGE=TRUE MATCH_BY_COLUMN_NAME=CASE_INSENSITIVE')
     for item in copy:
