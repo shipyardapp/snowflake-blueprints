@@ -84,7 +84,7 @@ def create_table(source_full_path, table_name, insert_method, db_connection):
             print(f'Created a new table {table_name}.')
     except BaseException as e:
         if 'already exists' in str(e):
-            print(e)
+            pass
         else:
             print(e)
 
@@ -96,9 +96,7 @@ def convert_to_parquet(source_full_path, table_name):
     Parquet files allows for column name mapping.
     """
     parquet_path = f'./tmp/{table_name}'
-    print(parquet_path)
     shipyard.files.create_folder_if_dne(parquet_path)
-    subprocess.run(['ls', '-laR', './tmp'])
     df = dd.read_csv(source_full_path)
     df.columns = map(lambda x: str(x).upper(), df.columns)
     df.to_parquet(
@@ -106,7 +104,6 @@ def convert_to_parquet(source_full_path, table_name):
         compression='gzip',
         write_index=False,
         write_metadata_file=False)
-    subprocess.run(['ls', '-laR', './tmp'])
     return parquet_path
 
 
@@ -114,9 +111,7 @@ def execute_put_command(db_connection, file_path, table_name, results_dict):
     """
     Execute the PUT command against Snowflake and store the results.
     """
-    print(f'putting {table_name}')
     put_statement = f"PUT file://{file_path}/part.*.parquet '@%\"{table_name}\"'"
-    print(put_statement)
     put = db_connection.execute(put_statement)
     for item in put:
         # These are guesses. The documentation doesn't specify.
@@ -147,9 +142,7 @@ def execute_copyinto_command(db_connection, table_name, results_dict):
     """
     Execute the COPY INTO command against Snowflake and store the results.
     """
-    print(f'copying into {table_name}')
     copy_into_statement = f'COPY INTO "{table_name}" FILE_FORMAT=(type=PARQUET) PURGE=TRUE MATCH_BY_COLUMN_NAME=CASE_INSENSITIVE'
-    print(copy_into_statement)
     copy = db_connection.execute(copy_into_statement)
     for item in copy:
         copy_results = {
