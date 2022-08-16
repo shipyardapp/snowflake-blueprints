@@ -101,7 +101,11 @@ def convert_to_parquet(source_full_path, table_name):
     subprocess.run(['ls', '-laR', './tmp'])
     df = dd.read_csv(source_full_path)
     df.columns = map(lambda x: str(x).upper(), df.columns)
-    df.to_parquet(parquet_path, compression='gzip', write_index=False)
+    df.to_parquet(
+        parquet_path,
+        compression='gzip',
+        write_index=False,
+        write_metadata_file=False)
     subprocess.run(['ls', '-laR', './tmp'])
     return parquet_path
 
