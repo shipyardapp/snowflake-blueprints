@@ -106,6 +106,7 @@ def execute_put_command(db_connection, file_path, table_name, results_dict):
     """
     Execute the PUT command against Snowflake and store the results.
     """
+    print(f'putting {table_name}')
     put = db_connection.execute(f'PUT file://{file_path}/* @%{table_name}')
     for item in put:
         # These are guesses. The documentation doesn't specify.
