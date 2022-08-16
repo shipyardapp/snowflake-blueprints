@@ -107,7 +107,9 @@ def execute_put_command(db_connection, file_path, table_name, results_dict):
     Execute the PUT command against Snowflake and store the results.
     """
     print(f'putting {table_name}')
-    put = db_connection.execute(f'PUT file://{file_path}/* @%{table_name}')
+    put_statement = f'PUT file://{file_path}/* @%{table_name}'
+    print(put_statement)
+    put = db_connection.execute(put_statement)
     for item in put:
         # These are guesses. The documentation doesn't specify.
         put_results = {
@@ -138,8 +140,9 @@ def execute_copyinto_command(db_connection, table_name, results_dict):
     Execute the COPY INTO command against Snowflake and store the results.
     """
     print(f'copying into {table_name}')
-    copy = db_connection.execute(
-        f'COPY INTO "{table_name}" FILE_FORMAT=(type=PARQUET) PURGE=TRUE MATCH_BY_COLUMN_NAME=CASE_INSENSITIVE')
+    copy_into_statement = f'COPY INTO "{table_name}" FILE_FORMAT=(type=PARQUET) PURGE=TRUE MATCH_BY_COLUMN_NAME=CASE_INSENSITIVE'
+    print(copy_into_statement)
+    copy = db_connection.execute(copy_into_statement)
     for item in copy:
         copy_results = {
             "file": item[0],
