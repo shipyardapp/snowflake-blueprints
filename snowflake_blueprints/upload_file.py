@@ -238,6 +238,19 @@ def upload_data(
                                                  table_name,
                                                  insert_method,
                                                  db_connection)
+
+        # create artifacts folder to save responses
+        base_folder_name = shipyard.logs.determine_base_artifact_folder(
+            'snowflake')
+        artifact_subfolder_paths = shipyard.logs.determine_artifact_subfolders(
+            base_folder_name)
+        shipyard.logs.create_artifacts_folders(artifact_subfolder_paths)
+        snowflake_upload_response_path = shipyard.files.combine_folder_and_file_name(
+            artifact_subfolder_paths['responses'], f'upload_{table_name}_response.json')
+        shipyard.files.write_json_to_file(
+            snowflake_results,
+            snowflake_upload_response_path)
+
         # Needed to prevent other try from running if this is successful.
         return snowflake_results
     except ProgrammingError as pg_e:
@@ -375,18 +388,6 @@ def main():
             table_name=table_name,
             insert_method=insert_method,
             db_connection=db_connection)
-
-    # create artifacts folder to save responses
-    base_folder_name = shipyard.logs.determine_base_artifact_folder(
-        'snowflake')
-    artifact_subfolder_paths = shipyard.logs.determine_artifact_subfolders(
-        base_folder_name)
-    shipyard.logs.create_artifacts_folders(artifact_subfolder_paths)
-    snowflake_upload_response_path = shipyard.files.combine_folder_and_file_name(
-        artifact_subfolder_paths['responses'], f'upload_{table_name}_response.json')
-    shipyard.files.write_json_to_file(
-        snowflake_results,
-        snowflake_upload_response_path)
 
     db_connection.dispose()
 
