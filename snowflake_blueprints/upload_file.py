@@ -111,7 +111,7 @@ def execute_put_command(db_connection, file_path, table_name, results_dict):
     Execute the PUT command against Snowflake and store the results.
     """
     print(f'putting {table_name}')
-    put_statement = f"PUT file://{file_path}/* '@%\"{table_name}\"'"
+    put_statement = f"PUT file://{file_path}/*.parquet '@%\"{table_name}\"'"
     print(put_statement)
     put = db_connection.execute(put_statement)
     for item in put:
