@@ -9,6 +9,7 @@ import shipyard_utils as shipyard
 from snowflake.connector.pandas_tools import pd_writer, write_pandas
 import dask.dataframe as dd
 import time
+import subprocess
 
 try:
     import errors
@@ -95,10 +96,13 @@ def convert_to_parquet(source_full_path, table_name):
     Parquet files allows for column name mapping.
     """
     parquet_path = f'./tmp/{table_name}'
+    print(parquet_path)
     shipyard.files.create_folder_if_dne(parquet_path)
+    subprocess.run(['ls', '-laR', './tmp'])
     df = dd.read_csv(source_full_path)
     df.columns = map(lambda x: str(x).upper(), df.columns)
     df.to_parquet(parquet_path, compression='gzip', write_index=False)
+    subprocess.run(['ls', '-laR', './tmp'])
     return parquet_path
 
 
