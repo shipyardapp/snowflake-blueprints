@@ -8,8 +8,6 @@ import sys
 import shipyard_utils as shipyard
 from snowflake.connector.pandas_tools import pd_writer, write_pandas
 import dask.dataframe as dd
-import time
-import subprocess
 
 try:
     import errors
