@@ -8,6 +8,7 @@ import sys
 import shipyard_utils as shipyard
 from snowflake.connector.pandas_tools import pd_writer, write_pandas
 import dask.dataframe as dd
+import time
 
 try:
     import errors
@@ -82,7 +83,7 @@ def create_table(source_full_path, table_name, insert_method, db_connection):
             print(f'Created a new table {table_name}.')
     except BaseException as e:
         if 'already exists' in str(e):
-            pass
+            print(e)
         else:
             print(e)
 
@@ -105,7 +106,7 @@ def execute_put_command(db_connection, file_path, table_name, results_dict):
     """
     Execute the PUT command against Snowflake and store the results.
     """
-    put = db_connection.execute(f'PUT file://{file_path}/* @%"{table_name}"')
+    put = db_connection.execute(f'PUT file://{file_path}/* @%{table_name}')
     for item in put:
         # These are guesses. The documentation doesn't specify.
         put_results = {
@@ -308,7 +309,7 @@ def main():
     source_folder_name = args.source_folder_name
     source_full_path = shipyard.files.combine_folder_and_file_name(
         folder_name=source_folder_name, file_name=source_file_name)
-    table_name = args.table_name
+    table_name = args.table_name.upper()
     insert_method = args.insert_method
 
     try:
