@@ -1,7 +1,8 @@
 from sqlalchemy.exc import DatabaseError, DBAPIError, ProgrammingError
 import pandas as pd
 from sqlalchemy import create_engine
-from snowflake.sqlalchemy import URL
+# from snowflake.sqlalchemy import URL
+from sqlalchemy.engine import URL
 import argparse
 import re
 import sys
@@ -322,6 +323,7 @@ def upload_data(
 
 
 def main():
+    print("Imported successfully")
     args = get_args()
     source_file_name_match_type = args.source_file_name_match_type
     source_file_name = args.source_file_name
