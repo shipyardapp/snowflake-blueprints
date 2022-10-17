@@ -3,3 +3,4 @@ pandas==1.3.5 #Latest version for Python 3.7
 snowflake-sqlalchemy==1.4
 shipyard-utils>=0.1.2
 dask==2022.2.0 #Latest version for Python 3.7
+SQLAlchemy==1.4.42
