@@ -1,7 +1,8 @@
+from copy import deepcopy
 from sqlalchemy.exc import DatabaseError, DBAPIError, ProgrammingError
 import pandas as pd
 from sqlalchemy import create_engine
-# from snowflake.sqlalchemy import URL
+# from snowflake.sqlalchemy.engine import URL
 from sqlalchemy.engine import URL
 import argparse
 import re
@@ -321,9 +322,21 @@ def upload_data(
         sys.exit(errors.EXIT_CODE_UNKNOWN_ERROR)
     print(f'{source_full_path} successfully uploaded to {table_name}.')
 
+def create_connection_string(con_str,params):
+    """
+    Helper function to add addtional connection parameters to the connection string
+    """
+    con_str_copy = deepcopy(con_str)
+    for param,value in params.items():
+        if value is not None:
+            if  param == 'warehouse':
+                con_str_copy = f"{con_str_copy}?warehouse={value}/"
+            else:
+                con_str_copy = f"{con_str_copy}/{value}/"
+    return con_str_copy
 
 def main():
-    print("Imported successfully")
+    print("successfully imported")
     args = get_args()
     source_file_name_match_type = args.source_file_name_match_type
     source_file_name = args.source_file_name
@@ -343,6 +356,7 @@ def main():
             warehouse=args.warehouse
         ))
         db_connection.connect()
+
     except DatabaseError as db_e:
         if 'Incorrect username or password' in str(db_e):
             print(f'Invalid username or password. Please check for typos and try again.')
