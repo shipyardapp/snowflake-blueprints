@@ -208,7 +208,7 @@ def upload_data_with_insert(source_full_path,
     print('Attempting upload with insert method')
     chunksize = 10000
     for index, chunk in enumerate(
-            pd.read_csv(source_full_path, chunksize=chunksize)):
+            pd.read_csv(source_full_path, chunksize=chunksize).convert_dtypes()):
 
         if insert_method == 'replace' and index > 0:
             # First chunk replaces the table, the following chunks
