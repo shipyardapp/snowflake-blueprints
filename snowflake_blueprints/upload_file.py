@@ -68,7 +68,8 @@ def create_table(source_full_path, table_name, insert_method, db_connection):
         chunksize = 10000
         for index, chunk in enumerate(
                 pd.read_csv(source_full_path, chunksize=chunksize)):
-            chunk.head(0).to_sql(
+            chunk_converted = chunk.convert_dtypes()
+            chunk_converted.head(0).to_sql(
                 table_name,
                 con=db_connection,
                 if_exists="fail",
@@ -95,7 +96,10 @@ def convert_to_parquet(source_full_path, table_name):
     """
     parquet_path = f'./tmp/{table_name}'
     shipyard.files.create_folder_if_dne(parquet_path)
-    df = dd.read_csv(source_full_path)
+    df_pandas = pd.read_csv(source_full_path).convert_dtypes()
+    df = dd.from_pandas(df_pandas)
+    # df = dd.read_csv(source_full_path)
+
     df.columns = map(lambda x: str(x).upper(), df.columns)
     df.to_parquet(
         parquet_path,

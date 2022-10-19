@@ -127,5 +127,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# local testing
 *.csv
 .DS_Store
+nate_test.py
+local_tests/
