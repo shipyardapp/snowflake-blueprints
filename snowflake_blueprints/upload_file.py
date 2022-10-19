@@ -20,6 +20,7 @@ warnings.filterwarnings(
     action='ignore',
     message='Dialect snowflake:snowflake will not make use of SQL compilation caching.*')
 
+CHUNKSIZE=10000 ## for dealing with chunks and partitions
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -65,7 +66,7 @@ def create_table(source_full_path, table_name, insert_method, db_connection):
     Used by the new PUT method because you can't PUT or COPY INTO if the table doesn't exist beforehand.
     """
     try:
-        chunksize = 10000
+        chunksize = CHUNKSIZE
         for index, chunk in enumerate(
                 pd.read_csv(source_full_path, chunksize=chunksize)):
             chunk_converted = chunk.convert_dtypes()
@@ -97,7 +98,7 @@ def convert_to_parquet(source_full_path, table_name):
     parquet_path = f'./tmp/{table_name}'
     shipyard.files.create_folder_if_dne(parquet_path)
     df_pandas = pd.read_csv(source_full_path).convert_dtypes()
-    df = dd.from_pandas(df_pandas)
+    df = dd.from_pandas(df_pandas,chunksize = CHUNKSIZE)
     # df = dd.read_csv(source_full_path)
 
     df.columns = map(lambda x: str(x).upper(), df.columns)
@@ -206,7 +207,7 @@ def upload_data_with_insert(source_full_path,
     Upload the data using pandas.to_sql which creates multiple INSERT statements.
     """
     print('Attempting upload with insert method')
-    chunksize = 10000
+    chunksize = CHUNKSIZE
     for index, chunk in enumerate(
             pd.read_csv(source_full_path, chunksize=chunksize)):
         chunk = chunk.convert_dtypes()
@@ -224,7 +225,7 @@ def upload_data_with_insert(source_full_path,
             index=False,
             if_exists=insert_method,
             method='multi',  # Not using pd_writer method due to inability to create tables and consistency with old behavior
-            chunksize=10000)
+            chunksize=CHUNKSIZE)
 
 
 def upload_data(
