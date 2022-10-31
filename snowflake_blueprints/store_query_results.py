@@ -90,7 +90,7 @@ def validate_database(con, database):
         f"SHOW DATABASES LIKE '{database}'").fetchone()
     if not result:
         print('Database provided does not exist. Please check for typos and try again.')
-        sys.exit(EXIT_CODE_INVALID_DATABASE)
+        sys.exit(errors.EXIT_CODE_INVALID_DATABASE)
     return
 
 
@@ -124,15 +124,15 @@ def main():
                 print(
                     f'Invalid account name. Instead of {account}, it might need to be something like {account.split(".")[0]}, without the region.')
         print(f_e)
-        sys.exit(EXIT_CODE_INVALID_ACCOUNT)
+        sys.exit(errors.EXIT_CODE_INVALID_ACCOUNT)
     except Exception as e:
         if e.errno == 250001:
             print(f'Invalid username or password. Please check for typos and try again.')
             print(e)
-            sys.exit(EXIT_CODE_INVALID_CREDENTIALS)
+            sys.exit(errors.EXIT_CODE_INVALID_CREDENTIALS)
         print(f'Failed to connect to Snowflake.')
         print(e)
-        sys.exit(EXIT_CODE_UNKNOWN_ERROR)
+        sys.exit(errors.EXIT_CODE_UNKNOWN_ERROR)
 
     if not os.path.exists(destination_folder_name) and (
             destination_folder_name != ''):
