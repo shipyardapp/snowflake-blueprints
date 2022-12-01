@@ -53,7 +53,8 @@ def get_args():
         choices={
             'fail',
             'replace',
-            'append'},
+            'append'
+        },
         default='append',
         required=False)
     parser.add_argument(
@@ -373,6 +374,9 @@ def main():
     data_types = args.snowflake_data_types
     if args.snowflake_data_types:
         data_types = eval(args.snowflake_data_types)
+        if insert_method == 'append':
+            print("Cannot append and dynamically update the snowflake datatypes. Please set the insert method to replace or leave the snowflake data types blank")
+            sys.exit(errors.EXIT_CODE_INVALID_ARGUMENTS)
 
     try:
         db_connection = create_engine(URL(
@@ -410,10 +414,6 @@ def main():
         print(f'Failed to connect to Snowflake.')
         print(e)
         sys.exit(errors.EXIT_CODE_UNKNOWN_ERROR)
-
-    # if args.snowflake_data_types:
-    #     create_table_with_types(
-    #         "TEST_SOCCER", db_connection, data_types)
 
     if source_file_name_match_type == 'regex_match':
         file_names = shipyard.files.find_all_local_file_names(
