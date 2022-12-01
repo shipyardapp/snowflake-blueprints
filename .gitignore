@@ -131,3 +131,9 @@ dmypy.json
 # local testing
 local_tests
 .DS_STORE
+.vscode
+soccer.csv
+tmp
+modify_file.py
+soccer_null.csv
+*-artifacts/

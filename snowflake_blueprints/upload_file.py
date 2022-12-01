@@ -8,12 +8,14 @@ import sys
 import shipyard_utils as shipyard
 from snowflake.connector.pandas_tools import pd_writer, write_pandas
 import dask.dataframe as dd
-
+import snowflake.connector
+import ast
+import snowflake.sqlalchemy as sql
+from sqlalchemy import Table, Column, Integer, String, MetaData
 try:
     import errors
 except BaseException:
     from . import errors
-
 import warnings
 warnings.simplefilter(action='ignore', category=UserWarning)
 warnings.filterwarnings(
@@ -54,9 +56,35 @@ def get_args():
             'append'},
         default='append',
         required=False)
+    parser.add_argument(
+        "--snowflake-data-types", dest="snowflake_data_types", required=False
+    )
     args = parser.parse_args()
 
     return args
+
+
+def create_table_with_types(table_name, db_connection, data_types):
+    # cur = db_connection.cursor()
+    # cur.execut("create or replace")
+    try:
+        query = f"create or replace table {table_name}" + "(\n"
+        length = len(data_types)
+        index = 1
+        for col_name, d_type in data_types.items():
+            if index < length:
+                query = query + " " + col_name + " " + d_type + ", "
+            else:
+                query = query + " " + col_name + " " + d_type
+            index += 1
+        else:
+            query = query + "\n );"
+        db_connection.execute(query)
+        print(f"Successfully created {table_name}")
+    except Exception as e:
+        print(f"Error in creating {table_name}")
+        print(f"The query {query} contains errors")
+        sys.exit(errors.EXIT_CODE_INVALID_QUERY)
 
 
 def create_table(source_full_path, table_name, insert_method, db_connection):
@@ -330,6 +358,7 @@ def main():
         folder_name=source_folder_name, file_name=source_file_name)
     table_name = args.table_name.upper()
     insert_method = args.insert_method
+    data_types = eval(args.snowflake_data_types)
 
     try:
         db_connection = create_engine(URL(
@@ -367,6 +396,10 @@ def main():
         print(f'Failed to connect to Snowflake.')
         print(e)
         sys.exit(errors.EXIT_CODE_UNKNOWN_ERROR)
+
+    if args.snowflake_data_types:
+        create_table_with_types(
+            "TEST_SOCCER", db_connection, data_types)
 
     if source_file_name_match_type == 'regex_match':
         file_names = shipyard.files.find_all_local_file_names(
