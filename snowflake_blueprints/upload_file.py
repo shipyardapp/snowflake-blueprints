@@ -66,8 +66,10 @@ def get_args():
 
 
 def create_table_with_types(table_name, db_connection, data_types):
-    # cur = db_connection.cursor()
-    # cur.execut("create or replace")
+    """
+    Creates a table with specific data types or replaces a table if it already exists.
+    Replacement will wipe the data in the existing table and then set the columns with the appropriate data types
+    """
     try:
         query = f"create or replace table {table_name}" + "(\n"
         length = len(data_types)
