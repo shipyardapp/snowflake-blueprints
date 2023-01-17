@@ -70,11 +70,31 @@ def create_table_with_types(table_name, db_connection, data_types):
     Creates a table with specific data types or replaces a table if it already exists.
     Replacement will wipe the data in the existing table and then set the columns with the appropriate data types
     """
+    # try:
+    #     query = f"create or replace table {table_name}" + "(\n"
+    #     length = len(data_types)
+    #     index = 1
+    #     for col_name, d_type in data_types.items():
+    #         if index < length:
+    #             query = query + " " + col_name + " " + d_type + ", "
+    #         else:
+    #             query = query + " " + col_name + " " + d_type
+    #         index += 1
+    #     else:
+    #         query = query + "\n );"
+    #     db_connection.execute(query)
+    #     print(f"Successfully created {table_name}")
+    # except Exception as e:
+    #     print(f"Error in creating {table_name}")
+    #     print(f"The query {query} contains errors")
+    #     sys.exit(errors.EXIT_CODE_INVALID_QUERY)
     try:
         query = f"create or replace table {table_name}" + "(\n"
         length = len(data_types)
         index = 1
-        for col_name, d_type in data_types.items():
+        for datatype in data_types:
+            col_name = datatype[0]
+            d_type = datatype[1]
             if index < length:
                 query = query + " " + col_name + " " + d_type + ", "
             else:
@@ -84,6 +104,7 @@ def create_table_with_types(table_name, db_connection, data_types):
             query = query + "\n );"
         db_connection.execute(query)
         print(f"Successfully created {table_name}")
+
     except Exception as e:
         print(f"Error in creating {table_name}")
         print(f"The query {query} contains errors")
@@ -375,7 +396,7 @@ def main():
     insert_method = args.insert_method
     data_types = args.snowflake_data_types
     if args.snowflake_data_types:
-        data_types = eval(args.snowflake_data_types)
+        data_types = ast.literal_eval(args.snowflake_data_types)
         if insert_method == 'append':
             print("Cannot append and dynamically update the snowflake datatypes. Please set the insert method to replace or leave the snowflake data types blank")
             sys.exit(errors.EXIT_CODE_INVALID_ARGUMENTS)
