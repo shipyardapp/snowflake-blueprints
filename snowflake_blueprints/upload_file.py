@@ -17,6 +17,7 @@ try:
 except BaseException:
     from . import errors
 import warnings
+import numpy as np
 warnings.simplefilter(action='ignore', category=UserWarning)
 warnings.filterwarnings(
     action='ignore',
@@ -65,29 +66,62 @@ def get_args():
     return args
 
 
+def map_snowflake_to_pandas(snowflake_data_types):
+    """ Helper function to map a snowflake data type to the associated pandas data type
+
+    Args:
+        List 
+
+    Returns:
+        dict: Dict where the key is the field name and the value is the pandas data type
+    """
+    snowflake_to_pandas = {
+        'BOOLEAN': 'bool',
+        'TINYINT': 'int8',
+        'SMALLINT': 'int16',
+        'INTEGER': 'int32',
+        'INT': 'int32',
+        'BIGINT': 'int64',
+        'FLOAT': 'float32',
+        'DOUBLE': 'float64',
+        'DECIMAL': 'float64',
+        'NUMERIC': 'float64',
+        'NUMBER': 'float64',
+        'REAL': 'float32',
+        'DATE': 'datetime64[ns]',
+        'TIME': 'datetime64[ns]',
+        'TIMESTAMP': 'datetime64[ns]',
+        'VARCHAR': 'object',
+        'NVARCHAR': 'object',
+        'CHAR': 'object',
+        'NCHAR': 'object',
+        'CLOB': 'object',
+        'NCLOB': 'object',
+        'BINARY': 'object',
+        'VARBINARY': 'object',
+        'BLOB': 'object',
+        'STRING': 'object'}
+
+    pandas_dtypes = {}
+    for item in snowflake_data_types:
+        field = item[0]
+        dtype = item[1]
+        try:
+            converted = snowflake_to_pandas.get(str(dtype).upper())
+            pandas_dtypes[field] = converted
+        except KeyError as e:
+            print(
+                f"The datatype {field} is not a recognized snowflake datatype")
+            sys.exit(errors.EXIT_CODE_INVALID_DATA_TYPES)
+
+    return pandas_dtypes
+
+
 def create_table_with_types(table_name, db_connection, data_types):
     """
     Creates a table with specific data types or replaces a table if it already exists.
     Replacement will wipe the data in the existing table and then set the columns with the appropriate data types
     """
-    # try:
-    #     query = f"create or replace table {table_name}" + "(\n"
-    #     length = len(data_types)
-    #     index = 1
-    #     for col_name, d_type in data_types.items():
-    #         if index < length:
-    #             query = query + " " + col_name + " " + d_type + ", "
-    #         else:
-    #             query = query + " " + col_name + " " + d_type
-    #         index += 1
-    #     else:
-    #         query = query + "\n );"
-    #     db_connection.execute(query)
-    #     print(f"Successfully created {table_name}")
-    # except Exception as e:
-    #     print(f"Error in creating {table_name}")
-    #     print(f"The query {query} contains errors")
-    #     sys.exit(errors.EXIT_CODE_INVALID_QUERY)
     try:
         query = f"create or replace table {table_name}" + "(\n"
         length = len(data_types)
@@ -111,32 +145,56 @@ def create_table_with_types(table_name, db_connection, data_types):
         sys.exit(errors.EXIT_CODE_INVALID_QUERY)
 
 
-def create_table(source_full_path, table_name, insert_method, db_connection):
+def create_table(source_full_path, table_name, insert_method, db_connection, snowflake_data_types=None):
     """
     Creates a table by looking at the schema of the first 10k rows and only loading the header row.
     Used by the new PUT method because you can't PUT or COPY INTO if the table doesn't exist beforehand.
     """
-    try:
-        chunksize = 10000
-        for index, chunk in enumerate(
-                pd.read_csv(source_full_path, chunksize=chunksize)):
-            chunk.head(0).to_sql(
-                table_name,
-                con=db_connection,
-                if_exists="fail",
-                index=False)
-            # prevents a loop that was necessary for loading only a small chunk
-            # of the data in.
-            break
-        if insert_method == 'append':
-            print(f'Created table {table_name} because it did not exist.')
-        elif insert_method == 'replace':
-            print(f'Created a new table {table_name}.')
-    except BaseException as e:
-        if 'already exists' in str(e):
-            pass
-        else:
-            print(e)
+    if snowflake_data_types:
+        try:
+            chunksize = 10000
+            mapping = map_snowflake_to_pandas(snowflake_data_types)
+            for index, chunk in enumerate(
+                    pd.read_csv(source_full_path, chunksize=chunksize, dtype=mapping)):
+                chunk.head(0).to_sql(
+                    table_name,
+                    con=db_connection,
+                    if_exists="fail",
+                    index=False)
+                # prevents a loop that was necessary for loading only a small chunk
+                # of the data in.
+                break
+            if insert_method == 'append':
+                print(f'Created table {table_name} because it did not exist.')
+            elif insert_method == 'replace':
+                print(f'Created a new table {table_name}.')
+        except BaseException as e:
+            if 'already exists' in str(e):
+                pass
+            else:
+                print(e)
+    else:
+        try:
+            chunksize = 10000
+            for index, chunk in enumerate(
+                    pd.read_csv(source_full_path, chunksize=chunksize)):
+                chunk.head(0).to_sql(
+                    table_name,
+                    con=db_connection,
+                    if_exists="fail",
+                    index=False)
+                # prevents a loop that was necessary for loading only a small chunk
+                # of the data in.
+                break
+            if insert_method == 'append':
+                print(f'Created table {table_name} because it did not exist.')
+            elif insert_method == 'replace':
+                print(f'Created a new table {table_name}.')
+        except BaseException as e:
+            if 'already exists' in str(e):
+                pass
+            else:
+                print(e)
 
 
 def convert_to_parquet(source_full_path, table_name):
@@ -214,7 +272,7 @@ def upload_data_with_put(source_full_path,
                          table_name,
                          insert_method,
                          db_connection,
-                         snowflake_data_types):
+                         snowflake_data_types=None):
     """
     Upload data by PUTing the file(s) in Snowflake temporary storage and using COPY INTO to get them into the table.
     """
@@ -223,31 +281,35 @@ def upload_data_with_put(source_full_path,
     snowflake_results = {"put": [], "copy": [], "drop": []}
     # Adding logic to create table with types if options is provided
     # This will supercede the insert method
-    if snowflake_data_types:
-        create_table_with_types(
-            table_name, db_connection, snowflake_data_types)
-        snowflake_results = execute_put_command(db_connection, parquet_path,
-                                                table_name, snowflake_results)
-        snowflake_results = execute_copyinto_command(
-            db_connection, table_name, snowflake_results)
-    elif insert_method == 'replace':
+    # if snowflake_data_types:
+    #     create_table_with_types(
+    #         table_name, db_connection, snowflake_data_types)
+    #     snowflake_results = execute_put_command(db_connection, parquet_path,
+    #                                             table_name, snowflake_results)
+    #     snowflake_results = execute_copyinto_command(
+    #         db_connection, table_name, snowflake_results)
+    if insert_method == 'replace':
         snowflake_results = execute_drop_command(
             db_connection, table_name, snowflake_results)
+        # TODO update args for data types
         create_table(
             source_full_path,
             table_name,
             insert_method,
-            db_connection)
+            db_connection,
+            snowflake_data_types)
         snowflake_results = execute_put_command(
             db_connection, parquet_path, table_name, snowflake_results)
         snowflake_results = execute_copyinto_command(
             db_connection, table_name, snowflake_results)
     elif insert_method == 'append':
+        # TODO update args for data types
         create_table(
             source_full_path,
             table_name,
             insert_method,
-            db_connection)
+            db_connection,
+            snowflake_data_types)
         snowflake_results = execute_put_command(
             db_connection, parquet_path, table_name, snowflake_results)
         snowflake_results = execute_copyinto_command(
@@ -397,9 +459,11 @@ def main():
     data_types = args.snowflake_data_types
     if args.snowflake_data_types:
         data_types = ast.literal_eval(args.snowflake_data_types)
-        if insert_method == 'append':
-            print("Cannot append and dynamically update the snowflake datatypes. Please set the insert method to replace or leave the snowflake data types blank")
-            sys.exit(errors.EXIT_CODE_INVALID_ARGUMENTS)
+    else:
+        data_types = None
+        # if insert_method == 'append':
+        #     print("Cannot append and dynamically update the snowflake datatypes. Please set the insert method to replace or leave the snowflake data types blank")
+        #     sys.exit(errors.EXIT_CODE_INVALID_ARGUMENTS)
 
     try:
         db_connection = create_engine(URL(
