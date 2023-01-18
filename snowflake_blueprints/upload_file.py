@@ -279,19 +279,9 @@ def upload_data_with_put(source_full_path,
     parquet_path = convert_to_parquet(source_full_path, table_name)
     print('Attempting upload with put method')
     snowflake_results = {"put": [], "copy": [], "drop": []}
-    # Adding logic to create table with types if options is provided
-    # This will supercede the insert method
-    # if snowflake_data_types:
-    #     create_table_with_types(
-    #         table_name, db_connection, snowflake_data_types)
-    #     snowflake_results = execute_put_command(db_connection, parquet_path,
-    #                                             table_name, snowflake_results)
-    #     snowflake_results = execute_copyinto_command(
-    #         db_connection, table_name, snowflake_results)
     if insert_method == 'replace':
         snowflake_results = execute_drop_command(
             db_connection, table_name, snowflake_results)
-        # TODO update args for data types
         create_table(
             source_full_path,
             table_name,
@@ -303,7 +293,6 @@ def upload_data_with_put(source_full_path,
         snowflake_results = execute_copyinto_command(
             db_connection, table_name, snowflake_results)
     elif insert_method == 'append':
-        # TODO update args for data types
         create_table(
             source_full_path,
             table_name,
@@ -461,9 +450,6 @@ def main():
         data_types = ast.literal_eval(args.snowflake_data_types)
     else:
         data_types = None
-        # if insert_method == 'append':
-        #     print("Cannot append and dynamically update the snowflake datatypes. Please set the insert method to replace or leave the snowflake data types blank")
-        #     sys.exit(errors.EXIT_CODE_INVALID_ARGUMENTS)
 
     try:
         db_connection = create_engine(URL(
