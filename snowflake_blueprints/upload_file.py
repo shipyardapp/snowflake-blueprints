@@ -73,8 +73,10 @@ def map_snowflake_to_pandas(snowflake_data_types):
         List 
 
     Returns:
-        dict: Dict where the key is the field name and the value is the pandas data type
+        dict | None: Dict where the key is the field name and the value is the pandas data type
     """
+    if snowflake_data_types is None:
+        return None
     snowflake_to_pandas = {
         'BOOLEAN': 'bool',
         'TINYINT': 'int8',
@@ -150,51 +152,29 @@ def create_table(source_full_path, table_name, insert_method, db_connection, sno
     Creates a table by looking at the schema of the first 10k rows and only loading the header row.
     Used by the new PUT method because you can't PUT or COPY INTO if the table doesn't exist beforehand.
     """
-    if snowflake_data_types:
-        try:
-            chunksize = 10000
-            mapping = map_snowflake_to_pandas(snowflake_data_types)
-            for index, chunk in enumerate(
-                    pd.read_csv(source_full_path, chunksize=chunksize, dtype=mapping)):
-                chunk.head(0).to_sql(
-                    table_name,
-                    con=db_connection,
-                    if_exists="fail",
-                    index=False)
-                # prevents a loop that was necessary for loading only a small chunk
-                # of the data in.
-                break
-            if insert_method == 'append':
-                print(f'Created table {table_name} because it did not exist.')
-            elif insert_method == 'replace':
-                print(f'Created a new table {table_name}.')
-        except BaseException as e:
-            if 'already exists' in str(e):
-                pass
-            else:
-                print(e)
-    else:
-        try:
-            chunksize = 10000
-            for index, chunk in enumerate(
-                    pd.read_csv(source_full_path, chunksize=chunksize)):
-                chunk.head(0).to_sql(
-                    table_name,
-                    con=db_connection,
-                    if_exists="fail",
-                    index=False)
-                # prevents a loop that was necessary for loading only a small chunk
-                # of the data in.
-                break
-            if insert_method == 'append':
-                print(f'Created table {table_name} because it did not exist.')
-            elif insert_method == 'replace':
-                print(f'Created a new table {table_name}.')
-        except BaseException as e:
-            if 'already exists' in str(e):
-                pass
-            else:
-                print(e)
+    datatypes = map_snowflake_to_pandas(snowflake_data_types)
+    try:
+        chunksize = 10000
+        mapping = map_snowflake_to_pandas(snowflake_data_types)
+        for index, chunk in enumerate(
+                pd.read_csv(source_full_path, chunksize=chunksize, dtype=datatypes)):
+            chunk.head(0).to_sql(
+                table_name,
+                con=db_connection,
+                if_exists="fail",
+                index=False)
+            # prevents a loop that was necessary for loading only a small chunk
+            # of the data in.
+            break
+        if insert_method == 'append':
+            print(f'Created table {table_name} because it did not exist.')
+        elif insert_method == 'replace':
+            print(f'Created a new table {table_name}.')
+    except BaseException as e:
+        if 'already exists' in str(e):
+            pass
+        else:
+            print(e)
 
 
 def convert_to_parquet(source_full_path, table_name):
@@ -310,14 +290,16 @@ def upload_data_with_put(source_full_path,
 def upload_data_with_insert(source_full_path,
                             table_name,
                             insert_method,
-                            db_connection):
+                            db_connection,
+                            snowflake_data_types=None):
     """
     Upload the data using pandas.to_sql which creates multiple INSERT statements.
     """
     print('Attempting upload with insert method')
     chunksize = 10000
+    datatypes = map_snowflake_to_pandas(snowflake_data_types)
     for index, chunk in enumerate(
-            pd.read_csv(source_full_path, chunksize=chunksize)):
+            pd.read_csv(source_full_path, chunksize=chunksize, dtype=datatypes)):
 
         if insert_method == 'replace' and index > 0:
             # First chunk replaces the table, the following chunks
