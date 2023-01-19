@@ -97,11 +97,8 @@ def map_snowflake_to_pandas(snowflake_data_types):
         'NVARCHAR': 'object',
         'CHAR': 'object',
         'NCHAR': 'object',
-        'CLOB': 'object',
-        'NCLOB': 'object',
         'BINARY': 'object',
         'VARBINARY': 'object',
-        'BLOB': 'object',
         'STRING': 'object'}
 
     pandas_dtypes = {}
