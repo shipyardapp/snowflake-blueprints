@@ -262,16 +262,24 @@ def upload_data_with_put(source_full_path,
     if insert_method == 'replace':
         snowflake_results = execute_drop_command(
             db_connection, table_name, snowflake_results)
-        create_table(
-            source_full_path,
-            table_name,
-            insert_method,
-            db_connection,
-            snowflake_data_types)
-        snowflake_results = execute_put_command(
-            db_connection, parquet_path, table_name, snowflake_results)
-        snowflake_results = execute_copyinto_command(
-            db_connection, table_name, snowflake_results)
+        if snowflake_data_types is not None:
+            create_table_with_types(
+                table_name, db_connection, snowflake_data_types)
+            snowflake_results = execute_put_command(
+                db_connection, parquet_path, table_name, snowflake_results)
+            snowflake_results = execute_copyinto_command(
+                db_connection, table_name, snowflake_results)
+        else:
+            create_table(
+                source_full_path,
+                table_name,
+                insert_method,
+                db_connection,
+                snowflake_data_types)
+            snowflake_results = execute_put_command(
+                db_connection, parquet_path, table_name, snowflake_results)
+            snowflake_results = execute_copyinto_command(
+                db_connection, table_name, snowflake_results)
     elif insert_method == 'append':
         create_table(
             source_full_path,
