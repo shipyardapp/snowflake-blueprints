@@ -327,7 +327,7 @@ def upload_data(
         table_name,
         insert_method,
         db_connection,
-        snowflake_data_types):
+        snowflake_data_types=None):
     """
     Upload the data to Snowflake. Tries the PUT method first, then relies on INSERT as a backup.
     """
