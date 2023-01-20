@@ -8,13 +8,16 @@ import sys
 import shipyard_utils as shipyard
 from snowflake.connector.pandas_tools import pd_writer, write_pandas
 import dask.dataframe as dd
-
+import snowflake.connector
+import ast
+import snowflake.sqlalchemy as sql
+from sqlalchemy import Table, Column, Integer, String, MetaData
 try:
     import errors
 except BaseException:
     from . import errors
-
 import warnings
+import numpy as np
 warnings.simplefilter(action='ignore', category=UserWarning)
 warnings.filterwarnings(
     action='ignore',
@@ -51,23 +54,107 @@ def get_args():
         choices={
             'fail',
             'replace',
-            'append'},
+            'append'
+        },
         default='append',
         required=False)
+    parser.add_argument(
+        "--snowflake-data-types", dest="snowflake_data_types", required=False, default=''
+    )
     args = parser.parse_args()
 
     return args
 
 
-def create_table(source_full_path, table_name, insert_method, db_connection):
+def map_snowflake_to_pandas(snowflake_data_types):
+    """ Helper function to map a snowflake data type to the associated pandas data type
+
+    Args:
+        List 
+
+    Returns:
+        dict | None: Dict where the key is the field name and the value is the pandas data type
+    """
+    if snowflake_data_types is None:
+        return None
+    snowflake_to_pandas = {
+        'BOOLEAN': 'bool',
+        'TINYINT': 'int8',
+        'SMALLINT': 'int16',
+        'INTEGER': 'int32',
+        'INT': 'int32',
+        'BIGINT': 'int64',
+        'FLOAT': 'float32',
+        'DOUBLE': 'float64',
+        'DECIMAL': 'float64',
+        'NUMERIC': 'float64',
+        'NUMBER': 'float64',
+        'REAL': 'float32',
+        'DATE': 'datetime64[ns]',
+        'TIME': 'datetime64[ns]',
+        'TIMESTAMP': 'datetime64[ns]',
+        'VARCHAR': 'object',
+        'NVARCHAR': 'object',
+        'CHAR': 'object',
+        'NCHAR': 'object',
+        'BINARY': 'object',
+        'VARBINARY': 'object',
+        'STRING': 'object'}
+
+    pandas_dtypes = {}
+    for item in snowflake_data_types:
+        field = item[0]
+        dtype = item[1]
+        try:
+            converted = snowflake_to_pandas.get(str(dtype).upper())
+            pandas_dtypes[field] = converted
+        except KeyError as e:
+            print(
+                f"The datatype {field} is not a recognized snowflake datatype")
+            sys.exit(errors.EXIT_CODE_INVALID_DATA_TYPES)
+
+    return pandas_dtypes
+
+
+def create_table_with_types(table_name, db_connection, data_types):
+    """
+    Creates a table with specific data types or replaces a table if it already exists.
+    Replacement will wipe the data in the existing table and then set the columns with the appropriate data types
+    """
+    try:
+        query = f"create or replace table {table_name}" + "(\n"
+        length = len(data_types)
+        index = 1
+        for datatype in data_types:
+            col_name = datatype[0]
+            d_type = datatype[1]
+            if index < length:
+                query = query + " " + col_name + " " + d_type + ", "
+            else:
+                query = query + " " + col_name + " " + d_type
+            index += 1
+        else:
+            query = query + "\n );"
+        db_connection.execute(query)
+        print(f"Successfully created {table_name}")
+
+    except Exception as e:
+        print(f"Error in creating {table_name}")
+        print(f"The query {query} contains errors")
+        sys.exit(errors.EXIT_CODE_INVALID_QUERY)
+
+
+def create_table(source_full_path, table_name, insert_method, db_connection, snowflake_data_types=None):
     """
     Creates a table by looking at the schema of the first 10k rows and only loading the header row.
     Used by the new PUT method because you can't PUT or COPY INTO if the table doesn't exist beforehand.
     """
+    datatypes = map_snowflake_to_pandas(snowflake_data_types)
     try:
         chunksize = 10000
+        mapping = map_snowflake_to_pandas(snowflake_data_types)
         for index, chunk in enumerate(
-                pd.read_csv(source_full_path, chunksize=chunksize)):
+                pd.read_csv(source_full_path, chunksize=chunksize, dtype=datatypes)):
             chunk.head(0).to_sql(
                 table_name,
                 con=db_connection,
@@ -161,7 +248,8 @@ def execute_copyinto_command(db_connection, table_name, results_dict):
 def upload_data_with_put(source_full_path,
                          table_name,
                          insert_method,
-                         db_connection):
+                         db_connection,
+                         snowflake_data_types=None):
     """
     Upload data by PUTing the file(s) in Snowflake temporary storage and using COPY INTO to get them into the table.
     """
@@ -171,21 +259,31 @@ def upload_data_with_put(source_full_path,
     if insert_method == 'replace':
         snowflake_results = execute_drop_command(
             db_connection, table_name, snowflake_results)
-        create_table(
-            source_full_path,
-            table_name,
-            insert_method,
-            db_connection)
-        snowflake_results = execute_put_command(
-            db_connection, parquet_path, table_name, snowflake_results)
-        snowflake_results = execute_copyinto_command(
-            db_connection, table_name, snowflake_results)
+        if snowflake_data_types is not None:
+            create_table_with_types(
+                table_name, db_connection, snowflake_data_types)
+            snowflake_results = execute_put_command(
+                db_connection, parquet_path, table_name, snowflake_results)
+            snowflake_results = execute_copyinto_command(
+                db_connection, table_name, snowflake_results)
+        else:
+            create_table(
+                source_full_path,
+                table_name,
+                insert_method,
+                db_connection,
+                snowflake_data_types)
+            snowflake_results = execute_put_command(
+                db_connection, parquet_path, table_name, snowflake_results)
+            snowflake_results = execute_copyinto_command(
+                db_connection, table_name, snowflake_results)
     elif insert_method == 'append':
         create_table(
             source_full_path,
             table_name,
             insert_method,
-            db_connection)
+            db_connection,
+            snowflake_data_types)
         snowflake_results = execute_put_command(
             db_connection, parquet_path, table_name, snowflake_results)
         snowflake_results = execute_copyinto_command(
@@ -197,14 +295,16 @@ def upload_data_with_put(source_full_path,
 def upload_data_with_insert(source_full_path,
                             table_name,
                             insert_method,
-                            db_connection):
+                            db_connection,
+                            snowflake_data_types=None):
     """
     Upload the data using pandas.to_sql which creates multiple INSERT statements.
     """
     print('Attempting upload with insert method')
     chunksize = 10000
+    datatypes = map_snowflake_to_pandas(snowflake_data_types)
     for index, chunk in enumerate(
-            pd.read_csv(source_full_path, chunksize=chunksize)):
+            pd.read_csv(source_full_path, chunksize=chunksize, dtype=datatypes)):
 
         if insert_method == 'replace' and index > 0:
             # First chunk replaces the table, the following chunks
@@ -226,7 +326,8 @@ def upload_data(
         source_full_path,
         table_name,
         insert_method,
-        db_connection):
+        db_connection,
+        snowflake_data_types=None):
     """
     Upload the data to Snowflake. Tries the PUT method first, then relies on INSERT as a backup.
     """
@@ -235,7 +336,8 @@ def upload_data(
         snowflake_results = upload_data_with_put(source_full_path,
                                                  table_name,
                                                  insert_method,
-                                                 db_connection)
+                                                 db_connection,
+                                                 snowflake_data_types)
 
         # create artifacts folder to save responses
         # TODO Both errors and successes need to be returned and printed out afterwards.
@@ -330,6 +432,11 @@ def main():
         folder_name=source_folder_name, file_name=source_file_name)
     table_name = args.table_name.upper()
     insert_method = args.insert_method
+    data_types = args.snowflake_data_types
+    if args.snowflake_data_types != '':
+        data_types = ast.literal_eval(args.snowflake_data_types)
+    else:
+        data_types = None
 
     try:
         db_connection = create_engine(URL(
@@ -380,14 +487,16 @@ def main():
                 source_full_path=key_name,
                 table_name=table_name,
                 insert_method=insert_method,
-                db_connection=db_connection)
+                db_connection=db_connection,
+                snowflake_data_types=data_types)
 
     else:
         snowflake_results = upload_data(
             source_full_path=source_full_path,
             table_name=table_name,
             insert_method=insert_method,
-            db_connection=db_connection)
+            db_connection=db_connection,
+            snowflake_data_types=data_types)
 
     db_connection.dispose()
 
