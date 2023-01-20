@@ -59,7 +59,7 @@ def get_args():
         default='append',
         required=False)
     parser.add_argument(
-        "--snowflake-data-types", dest="snowflake_data_types", required=False
+        "--snowflake-data-types", dest="snowflake_data_types", required=False, default=''
     )
     args = parser.parse_args()
 
@@ -433,7 +433,7 @@ def main():
     table_name = args.table_name.upper()
     insert_method = args.insert_method
     data_types = args.snowflake_data_types
-    if args.snowflake_data_types:
+    if args.snowflake_data_types != '':
         data_types = ast.literal_eval(args.snowflake_data_types)
     else:
         data_types = None
