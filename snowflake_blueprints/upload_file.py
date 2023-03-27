@@ -174,7 +174,7 @@ def create_table(source_full_path, table_name, insert_method, db_connection, sno
             print(e)
 
 
-def convert_to_parquet(source_full_path, table_name):
+def convert_to_parquet(source_full_path, table_name, snowflake_datatypes):
     """
     Converts a given CSV to multiple Parquet for uploading.
     Uses fastest tested method with Dask and gzip (Snowflake recommendation)
@@ -182,7 +182,8 @@ def convert_to_parquet(source_full_path, table_name):
     """
     parquet_path = f'./tmp/{table_name}'
     shipyard.files.create_folder_if_dne(parquet_path)
-    df = dd.read_csv(source_full_path)
+    datatypes = map_snowflake_to_pandas(snowflake_datatypes)
+    df = dd.read_csv(source_full_path, dtype=datatypes)
     df.columns = map(lambda x: str(x).upper(), df.columns)
     df.to_parquet(
         parquet_path,
@@ -253,7 +254,8 @@ def upload_data_with_put(source_full_path,
     """
     Upload data by PUTing the file(s) in Snowflake temporary storage and using COPY INTO to get them into the table.
     """
-    parquet_path = convert_to_parquet(source_full_path, table_name)
+    parquet_path = convert_to_parquet(
+        source_full_path, table_name, snowflake_data_types)
     print('Attempting upload with put method')
     snowflake_results = {"put": [], "copy": [], "drop": []}
     if insert_method == 'replace':
