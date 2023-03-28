@@ -116,6 +116,14 @@ def map_snowflake_to_pandas(snowflake_data_types):
     return pandas_dtypes
 
 
+def get_pandas_dates(pandas_datatypes: dict) -> list:
+    dates = []
+    for k, v in pandas_datatypes:
+        if v in ['datetime64[ns]', 'datetime64']:
+            dates.append[k]
+    return k
+
+
 def create_table_with_types(table_name, db_connection, data_types):
     """
     Creates a table with specific data types or replaces a table if it already exists.
@@ -153,8 +161,9 @@ def create_table(source_full_path, table_name, insert_method, db_connection, sno
     try:
         chunksize = 10000
         mapping = map_snowflake_to_pandas(snowflake_data_types)
+        dates = get_pandas_dates(datatypes)
         for index, chunk in enumerate(
-                pd.read_csv(source_full_path, chunksize=chunksize, dtype=datatypes)):
+                pd.read_csv(source_full_path, chunksize=chunksize, dtype=datatypes, parse_dates=dates)):
             chunk.head(0).to_sql(
                 table_name,
                 con=db_connection,
@@ -183,7 +192,8 @@ def convert_to_parquet(source_full_path, table_name, snowflake_datatypes):
     parquet_path = f'./tmp/{table_name}'
     shipyard.files.create_folder_if_dne(parquet_path)
     datatypes = map_snowflake_to_pandas(snowflake_datatypes)
-    df = dd.read_csv(source_full_path, dtype=datatypes)
+    dates = get_pandas_dates(datatypes)
+    df = dd.read_csv(source_full_path, dtype=datatypes, parse_dates=dates)
     df.columns = map(lambda x: str(x).upper(), df.columns)
     df.to_parquet(
         parquet_path,
