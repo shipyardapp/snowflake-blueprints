@@ -121,7 +121,7 @@ def map_snowflake_to_pandas(snowflake_data_types):
     return pandas_dtypes
 
 
-def get_pandas_dates(pandas_datatypes: dict) -> tuple(list, dict):
+def get_pandas_dates(pandas_datatypes: dict) -> tuple:
     dates = []
     new_dict = deepcopy(pandas_datatypes)
     for k, v in pandas_datatypes.items():
