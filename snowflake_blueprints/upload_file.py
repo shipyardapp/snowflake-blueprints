@@ -24,9 +24,6 @@ warnings.filterwarnings(
     action='ignore',
     message='Dialect snowflake:snowflake will not make use of SQL compilation caching.*')
 
-DATE_FORMAT = "%m/%d/%Y"
-SNOWFLAKE_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
-
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -214,10 +211,8 @@ def convert_to_parquet(source_full_path, table_name, snowflake_datatypes):
     pandas_datatypes = None
     if datatypes is not None:
         dates, pandas_datatypes = get_pandas_dates(datatypes)
-    # df = dd.read_csv(source_full_path, dtype=pandas_datatypes,
-    #                  parse_dates=dates, date_parser=lambda x: pd.to_datetime(x).to_datetime64())
-    df = pd.read_csv(source_full_path, dtype=pandas_datatypes,
-                     parse_dates=dates, date_parser=lambda x: pd.to_datetime(x, format=DATE_FORMAT).to_datetime64())
+    df = dd.read_csv(source_full_path, dtype=pandas_datatypes,
+                     parse_dates=dates, date_parser=lambda x: pd.to_datetime(x).to_datetime64())
     df.columns = map(lambda x: str(x).upper(), df.columns)
     df.to_parquet(
         parquet_path,
@@ -240,7 +235,7 @@ def compress_csv(source_full_path, table_name, snowflake_datatypes):
     if datatypes is not None:
         dates, pandas_datatypes = get_pandas_dates(datatypes)
     df = dd.read_csv(source_full_path, dtype=pandas_datatypes, parse_dates=dates,
-                     date_parser=lambda x: pd.to_datetime(x))
+                     date_parser=lambda x: pd.to_datetime(x).to_datetime64())
     df.columns = map(lambda x: str(x).upper(), df.columns)
     df.to_csv(full_path, compression='gzip', index=False)
     # return csv_path
@@ -316,7 +311,6 @@ def create_file_format(db_connection):
     ERROR_ON_COLUMN_COUNT_MISMATCH = FALSE;
     """
     db_connection.execute(sql)
-    print("Successfully created file format")
     return file_format
 
 
@@ -352,30 +346,18 @@ def upload_data_with_put(source_full_path,
     """
     Upload data by PUTing the file(s) in Snowflake temporary storage and using COPY INTO to get them into the table.
     """
-    # parquet_path = convert_to_parquet(
-    #     source_full_path, table_name, snowflake_data_types)
     csv_path = compress_csv(source_full_path, table_name, snowflake_data_types)
     print('Attempting upload with put method')
     snowflake_results = {"put": [], "copy": [], "drop": []}
     if insert_method == 'replace':
         snowflake_results = execute_drop_command(
             db_connection, table_name, snowflake_results)
-        # if snowflake_data_types is not None:
-        #     temp_name = create_table_with_types(
-        #         table_name, db_connection, snowflake_data_types)
-        #     # NOTE changing to temp_name instead of table_name
-        #     snowflake_results = execute_put_command(
-        #         db_connection, parquet_path, table_name, snowflake_results)
-        #     snowflake_results = execute_copyinto_command(
-        #         db_connection, table_name, snowflake_results)
         create_table(
             source_full_path,
             table_name,
             insert_method,
             db_connection,
             snowflake_data_types)
-        # snowflake_results = execute_put_command(
-        #     db_connection, parquet_path, table_name, snowflake_results)
         snowflake_results = put_csv(
             db_connection, csv_path, table_name, snowflake_results)
         snowflake_results = execute_copyinto_command(
@@ -387,8 +369,6 @@ def upload_data_with_put(source_full_path,
             insert_method,
             db_connection,
             snowflake_data_types)
-        # snowflake_results = execute_put_command(
-        #     db_connection, parquet_path, table_name, snowflake_results)
         snowflake_results = put_csv(
             db_connection, csv_path, table_name, snowflake_results)
         snowflake_results = execute_copyinto_command(
