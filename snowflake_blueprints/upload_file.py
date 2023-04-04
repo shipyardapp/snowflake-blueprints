@@ -107,7 +107,6 @@ def map_snowflake_to_pandas(snowflake_data_types):
         field = item[0]
         dtype = item[1]
         try:
-            # converted = snowflake_to_pandas.get(str(dtype).upper())
             converted = snowflake_to_pandas[str(dtype).upper()]
             if converted is None:
                 print(
@@ -122,7 +121,7 @@ def map_snowflake_to_pandas(snowflake_data_types):
     return pandas_dtypes
 
 
-def get_pandas_dates(pandas_datatypes: dict) -> list:
+def get_pandas_dates(pandas_datatypes: dict) -> tuple(list, dict):
     dates = []
     new_dict = deepcopy(pandas_datatypes)
     for k, v in pandas_datatypes.items():
@@ -238,7 +237,6 @@ def compress_csv(source_full_path, table_name, snowflake_datatypes):
                      date_parser=lambda x: pd.to_datetime(x).to_datetime64())
     df.columns = map(lambda x: str(x).upper(), df.columns)
     df.to_csv(full_path, compression='gzip', index=False)
-    # return csv_path
     return full_path
 
 
@@ -247,7 +245,6 @@ def put_csv(db_connection, file_path, table_name, results_dict):
     Execute the PUT command against Snowflake and store the results.
     """
     put_statement = f"PUT file://{file_path} '@%\"{table_name}\"'"
-    # put_statement = f"PUT file://{file_path}/part.*.parquet @stg;"
     put = db_connection.execute(put_statement)
     for item in put:
         # These are guesses. The documentation doesn't specify.
@@ -268,11 +265,7 @@ def execute_put_command(db_connection, file_path, table_name, results_dict):
     """
     Execute the PUT command against Snowflake and store the results.
     """
-    # NOTE testing creating a staging area
-    # create_sql = f"""CREATE TEMPORARY STAGE stg FILE_FORMAT = (TYPE = 'PARQUET'); """
-    # db_connection.execute(create_sql)  # create the staging table
     put_statement = f"PUT file://{file_path}/part.*.parquet '@%\"{table_name}\"'"
-    # put_statement = f"PUT file://{file_path}/part.*.parquet @stg;"
     put = db_connection.execute(put_statement)
     for item in put:
         # These are guesses. The documentation doesn't specify.
