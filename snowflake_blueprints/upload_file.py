@@ -93,6 +93,7 @@ def map_snowflake_to_pandas(snowflake_data_types):
         'REAL': 'float32',
         'DATE': 'datetime64[ns]',
         'TIME': 'datetime64[ns]',
+        'DATETIME' : 'datetime64[ns]',
         'TIMESTAMP': 'datetime64[ns]',
         'VARCHAR': 'object',
         'NVARCHAR': 'object',
