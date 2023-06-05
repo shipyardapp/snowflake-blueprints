@@ -232,10 +232,17 @@ def compress_csv(source_full_path, table_name, snowflake_datatypes):
     datatypes = map_snowflake_to_pandas(snowflake_datatypes)
     dates = None
     pandas_datatypes = None
-    if datatypes is not None:
+    if datatypes:
         dates, pandas_datatypes = get_pandas_dates(datatypes)
-    df = dd.read_csv(source_full_path, dtype=pandas_datatypes, parse_dates=dates,
-                     date_parser=lambda x: pd.to_datetime(x).to_datetime64())
+    # handle cases where dates is None
+    if dates:
+        dates, pandas_datatypes = get_pandas_dates(datatypes)
+
+        df = dd.read_csv(source_full_path, dtype=pandas_datatypes, parse_dates=dates,
+            date_parser=lambda x: pd.to_datetime(x, errors = 'coerce',).to_datetime64())
+    else:
+        df = dd.read_csv(source_full_path, dtype=pandas_datatypes)
+
     df.columns = map(lambda x: str(x).upper(), df.columns)
     df.to_csv(full_path, compression='gzip', index=False)
     return full_path
