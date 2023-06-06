@@ -18,6 +18,7 @@ def get_args():
     parser.add_argument('--database', dest='database', required=True)
     parser.add_argument('--schema', dest='schema', required=False)
     parser.add_argument('--query', dest='query', required=True)
+    parser.add_argument('--user-role', dest = 'user_role', required = False, default = '')
     args = parser.parse_args()
     return args
 
@@ -43,31 +44,60 @@ def main():
     database = args.database
     schema = args.schema
     query = args.query
+    user_role = args.user_role
 
-    try:
-        con = snowflake.connector.connect(user=username, password=password,
-                                          account=account, warehouse=warehouse,
-                                          database=database, schema=schema)
-        cur = con.cursor()
-    except DatabaseError as db_e:
-        if db_e.errno == 250001:
-            print(f'Invalid username or password. Please check for typos and try again.')
-        print(db_e)
-        sys.exit(errors.EXIT_CODE_INVALID_CREDENTIALS)
-    except ForbiddenError as f_e:
-        if f_e.errno == 250001:
-            if '.' not in account:
-                print(
-                    f'Invalid account name. Instead of {account}, it might need to be something like {account}.us-east-2.aws, including the region.')
-            else:
-                print(
-                    f'Invalid account name. Instead of {account}, it might need to be something like {account.split(".")[0]}, without the region.')
-        print(f_e)
-        sys.exit(errors.EXIT_CODE_INVALID_ACCOUNT)
-    except Exception as e:
-        print(f'Failed to connect to Snowflake.')
-        print(e)
-        sys.exit(errors.EXIT_CODE_UNKNOWN_ERROR)
+    if user_role != '':
+
+        try:
+            con = snowflake.connector.connect(user=username, password=password,
+                                            account=account, warehouse=warehouse,
+                                            database=database, schema=schema, role = user_role)
+            cur = con.cursor()
+        except DatabaseError as db_e:
+            if db_e.errno == 250001:
+                print(f'Invalid username or password. Please check for typos and try again.')
+            print(db_e)
+            sys.exit(errors.EXIT_CODE_INVALID_CREDENTIALS)
+        except ForbiddenError as f_e:
+            if f_e.errno == 250001:
+                if '.' not in account:
+                    print(
+                        f'Invalid account name. Instead of {account}, it might need to be something like {account}.us-east-2.aws, including the region.')
+                else:
+                    print(
+                        f'Invalid account name. Instead of {account}, it might need to be something like {account.split(".")[0]}, without the region.')
+            print(f_e)
+            sys.exit(errors.EXIT_CODE_INVALID_ACCOUNT)
+        except Exception as e:
+            print(f'Failed to connect to Snowflake.')
+            print(e)
+            sys.exit(errors.EXIT_CODE_UNKNOWN_ERROR)
+    else:
+        try:
+            con = snowflake.connector.connect(user=username, password=password,
+                                            account=account, warehouse=warehouse,
+                                            database=database, schema=schema)
+            cur = con.cursor()
+        except DatabaseError as db_e:
+            if db_e.errno == 250001:
+                print(f'Invalid username or password. Please check for typos and try again.')
+            print(db_e)
+            sys.exit(errors.EXIT_CODE_INVALID_CREDENTIALS)
+        except ForbiddenError as f_e:
+            if f_e.errno == 250001:
+                if '.' not in account:
+                    print(
+                        f'Invalid account name. Instead of {account}, it might need to be something like {account}.us-east-2.aws, including the region.')
+                else:
+                    print(
+                        f'Invalid account name. Instead of {account}, it might need to be something like {account.split(".")[0]}, without the region.')
+            print(f_e)
+            sys.exit(errors.EXIT_CODE_INVALID_ACCOUNT)
+        except Exception as e:
+            print(f'Failed to connect to Snowflake.')
+            print(e)
+            sys.exit(errors.EXIT_CODE_UNKNOWN_ERROR)
+
 
     validate_database(con=con, database=database)
 
