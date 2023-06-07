@@ -62,6 +62,7 @@ def get_args():
     parser.add_argument(
         "--snowflake-data-types", dest="snowflake_data_types", required=False, default=''
     )
+    parser.add_argument('--user-role', dest='user_role', required=False, default = '')
     args = parser.parse_args()
 
     return args
@@ -528,16 +529,27 @@ def main():
         data_types = ast.literal_eval(args.snowflake_data_types)
     else:
         data_types = None
-
     try:
-        db_connection = create_engine(URL(
-            account=args.account,
-            user=args.username,
-            password=args.password,
-            database=args.database,
-            schema=args.schema,
-            warehouse=args.warehouse
-        ))
+        if args.user_role != '':
+            user_role = args.user_role
+            db_connection = create_engine(URL(
+                account=args.account,
+                user=args.username,
+                password=args.password,
+                database=args.database,
+                schema=args.schema,
+                warehouse=args.warehouse,
+                role = user_role,
+            ))
+        else:
+            db_connection = create_engine(URL(
+                account=args.account,
+                user=args.username,
+                password=args.password,
+                database=args.database,
+                schema=args.schema,
+                warehouse=args.warehouse
+            ))
         db_connection.connect()
     except DatabaseError as db_e:
         if 'Incorrect username or password' in str(db_e):

@@ -18,6 +18,7 @@ def get_args():
     parser.add_argument('--database', dest='database', required=True)
     parser.add_argument('--schema', dest='schema', required=False)
     parser.add_argument('--query', dest='query', required=True)
+    parser.add_argument('--user-role', dest = 'user_role', required = False, default = '')
     args = parser.parse_args()
     return args
 
@@ -43,11 +44,18 @@ def main():
     database = args.database
     schema = args.schema
     query = args.query
+    user_role = args.user_role
 
     try:
-        con = snowflake.connector.connect(user=username, password=password,
-                                          account=account, warehouse=warehouse,
-                                          database=database, schema=schema)
+        if user_role != '':
+            con = snowflake.connector.connect(user=username, password=password,
+                                            account=account, warehouse=warehouse,
+                                            database=database, schema=schema, role = user_role)
+        else:
+            con = snowflake.connector.connect(user=username, password=password,
+                                            account=account, warehouse=warehouse,
+                                            database=database, schema=schema)
+
         cur = con.cursor()
     except DatabaseError as db_e:
         if db_e.errno == 250001:
@@ -68,7 +76,6 @@ def main():
         print(f'Failed to connect to Snowflake.')
         print(e)
         sys.exit(errors.EXIT_CODE_UNKNOWN_ERROR)
-
     validate_database(con=con, database=database)
 
     try:
