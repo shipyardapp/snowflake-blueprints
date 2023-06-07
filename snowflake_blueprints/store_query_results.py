@@ -113,55 +113,34 @@ def main():
     user_role = args.user_role
 
 
-    if user_role != '':
 
-        try:
+    try:
+        if user_role != '':
             con = snowflake.connector.connect(user=username, password=password,
                                             account=account, warehouse=warehouse,
                                             database=database, schema=schema, role = user_role)
-
-        except ForbiddenError as f_e:
-            if f_e.errno == 250001:
-                if '.' not in account:
-                    print(
-                        f'Invalid account name. Instead of {account}, it might need to be something like {account}.us-east-2.aws, including the region.')
-                else:
-                    print(
-                        f'Invalid account name. Instead of {account}, it might need to be something like {account.split(".")[0]}, without the region.')
-            print(f_e)
-            sys.exit(errors.EXIT_CODE_INVALID_ACCOUNT)
-        except Exception as e:
-            if e.errno == 250001:
-                print(f'Invalid username or password. Please check for typos and try again.')
-                print(e)
-                sys.exit(errors.EXIT_CODE_INVALID_CREDENTIALS)
-            print(f'Failed to connect to Snowflake.')
-            print(e)
-            sys.exit(errors.EXIT_CODE_UNKNOWN_ERROR)
-    else:
-        try:
+        else:
             con = snowflake.connector.connect(user=username, password=password,
                                             account=account, warehouse=warehouse,
                                             database=database, schema=schema)
-
-        except ForbiddenError as f_e:
-            if f_e.errno == 250001:
-                if '.' not in account:
-                    print(
-                        f'Invalid account name. Instead of {account}, it might need to be something like {account}.us-east-2.aws, including the region.')
-                else:
-                    print(
-                        f'Invalid account name. Instead of {account}, it might need to be something like {account.split(".")[0]}, without the region.')
-            print(f_e)
-            sys.exit(errors.EXIT_CODE_INVALID_ACCOUNT)
-        except Exception as e:
-            if e.errno == 250001:
-                print(f'Invalid username or password. Please check for typos and try again.')
-                print(e)
-                sys.exit(errors.EXIT_CODE_INVALID_CREDENTIALS)
-            print(f'Failed to connect to Snowflake.')
+    except ForbiddenError as f_e:
+        if f_e.errno == 250001:
+            if '.' not in account:
+                print(
+                    f'Invalid account name. Instead of {account}, it might need to be something like {account}.us-east-2.aws, including the region.')
+            else:
+                print(
+                    f'Invalid account name. Instead of {account}, it might need to be something like {account.split(".")[0]}, without the region.')
+        print(f_e)
+        sys.exit(errors.EXIT_CODE_INVALID_ACCOUNT)
+    except Exception as e:
+        if e.errno == 250001:
+            print(f'Invalid username or password. Please check for typos and try again.')
             print(e)
-            sys.exit(errors.EXIT_CODE_UNKNOWN_ERROR)
+            sys.exit(errors.EXIT_CODE_INVALID_CREDENTIALS)
+        print(f'Failed to connect to Snowflake.')
+        print(e)
+        sys.exit(errors.EXIT_CODE_UNKNOWN_ERROR)
 
     if not os.path.exists(destination_folder_name) and (
             destination_folder_name != ''):

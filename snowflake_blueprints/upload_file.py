@@ -529,9 +529,9 @@ def main():
         data_types = ast.literal_eval(args.snowflake_data_types)
     else:
         data_types = None
-    if args.user_role != '':
-        user_role = args.user_role
-        try:
+    try:
+        if args.user_role != '':
+            user_role = args.user_role
             db_connection = create_engine(URL(
                 account=args.account,
                 user=args.username,
@@ -541,35 +541,7 @@ def main():
                 warehouse=args.warehouse,
                 role = user_role,
             ))
-            db_connection.connect()
-        except DatabaseError as db_e:
-            if 'Incorrect username or password' in str(db_e):
-                print(f'Invalid username or password. Please check for typos and try again.')
-                print(db_e)
-                sys.exit(errors.EXIT_CODE_INVALID_CREDENTIALS)
-            print(db_e)
-            sys.exit(errors.EXIT_CODE_UNKNOWN_ERROR)
-        except DBAPIError as dbapi_e:
-            if 'Verify the account name is correct' in str(dbapi_e):
-                if '.' not in args.account:
-                    print(
-                        f'Invalid account name. Instead of {args.account}, it might need to be something like {args.account}.us-east-2.aws, including the region.')
-                else:
-                    print(
-                        f'Invalid account name. Instead of {args.account}, it might need to be something like {args.account.split(".")[0]}, without the region.')
-                print(dbapi_e)
-                sys.exit(errors.EXIT_CODE_INVALID_ACCOUNT)
-            print(dbapi_e)
-            sys.exit(errors.EXIT_CODE_UNKNOWN_ERROR)
-        except Exception as e:
-            if 'quote_from_bytes() expected bytes' in str(e):
-                print(f'The schema provided either does not exist or your user does not have access to it. If no schema was provided, no default schema exists.')
-                sys.exit(errors.EXIT_CODE_INVALID_SCHEMA)
-            print(f'Failed to connect to Snowflake.')
-            print(e)
-            sys.exit(errors.EXIT_CODE_UNKNOWN_ERROR)
-    else:
-        try:
+        else:
             db_connection = create_engine(URL(
                 account=args.account,
                 user=args.username,
@@ -578,34 +550,33 @@ def main():
                 schema=args.schema,
                 warehouse=args.warehouse
             ))
-            db_connection.connect()
-        except DatabaseError as db_e:
-            if 'Incorrect username or password' in str(db_e):
-                print(f'Invalid username or password. Please check for typos and try again.')
-                print(db_e)
-                sys.exit(errors.EXIT_CODE_INVALID_CREDENTIALS)
+        db_connection.connect()
+    except DatabaseError as db_e:
+        if 'Incorrect username or password' in str(db_e):
+            print(f'Invalid username or password. Please check for typos and try again.')
             print(db_e)
-            sys.exit(errors.EXIT_CODE_UNKNOWN_ERROR)
-        except DBAPIError as dbapi_e:
-            if 'Verify the account name is correct' in str(dbapi_e):
-                if '.' not in args.account:
-                    print(
-                        f'Invalid account name. Instead of {args.account}, it might need to be something like {args.account}.us-east-2.aws, including the region.')
-                else:
-                    print(
-                        f'Invalid account name. Instead of {args.account}, it might need to be something like {args.account.split(".")[0]}, without the region.')
-                print(dbapi_e)
-                sys.exit(errors.EXIT_CODE_INVALID_ACCOUNT)
+            sys.exit(errors.EXIT_CODE_INVALID_CREDENTIALS)
+        print(db_e)
+        sys.exit(errors.EXIT_CODE_UNKNOWN_ERROR)
+    except DBAPIError as dbapi_e:
+        if 'Verify the account name is correct' in str(dbapi_e):
+            if '.' not in args.account:
+                print(
+                    f'Invalid account name. Instead of {args.account}, it might need to be something like {args.account}.us-east-2.aws, including the region.')
+            else:
+                print(
+                    f'Invalid account name. Instead of {args.account}, it might need to be something like {args.account.split(".")[0]}, without the region.')
             print(dbapi_e)
-            sys.exit(errors.EXIT_CODE_UNKNOWN_ERROR)
-        except Exception as e:
-            if 'quote_from_bytes() expected bytes' in str(e):
-                print(f'The schema provided either does not exist or your user does not have access to it. If no schema was provided, no default schema exists.')
-                sys.exit(errors.EXIT_CODE_INVALID_SCHEMA)
-            print(f'Failed to connect to Snowflake.')
-            print(e)
-            sys.exit(errors.EXIT_CODE_UNKNOWN_ERROR)
-
+            sys.exit(errors.EXIT_CODE_INVALID_ACCOUNT)
+        print(dbapi_e)
+        sys.exit(errors.EXIT_CODE_UNKNOWN_ERROR)
+    except Exception as e:
+        if 'quote_from_bytes() expected bytes' in str(e):
+            print(f'The schema provided either does not exist or your user does not have access to it. If no schema was provided, no default schema exists.')
+            sys.exit(errors.EXIT_CODE_INVALID_SCHEMA)
+        print(f'Failed to connect to Snowflake.')
+        print(e)
+        sys.exit(errors.EXIT_CODE_UNKNOWN_ERROR)
 
     if source_file_name_match_type == 'regex_match':
         file_names = shipyard.files.find_all_local_file_names(
