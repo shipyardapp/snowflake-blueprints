@@ -13,6 +13,7 @@ import ast
 import snowflake.sqlalchemy as sql
 from sqlalchemy import Table, Column, Integer, String, MetaData
 from copy import deepcopy
+from utils import decode_rsa
 try:
     import errors
 except BaseException:
@@ -28,7 +29,7 @@ warnings.filterwarnings(
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--username', dest='username', required=True)
-    parser.add_argument('--password', dest='password', required=True)
+    parser.add_argument('--password', dest='password', required=False)
     parser.add_argument('--account', dest='account', required=True)
     parser.add_argument('--warehouse', dest='warehouse', required=False)
     parser.add_argument('--database', dest='database', required=False)
@@ -63,6 +64,8 @@ def get_args():
         "--snowflake-data-types", dest="snowflake_data_types", required=False, default=''
     )
     parser.add_argument('--user-role', dest='user_role', required=False, default = '')
+    parser.add_argument('--private-key-path', dest='private_key_path', required=False, default = '')
+    parser.add_argument('--private-key-passphrase', dest='private_key_passphrase', required=False, default = '')
     args = parser.parse_args()
 
     return args
@@ -529,27 +532,41 @@ def main():
         data_types = ast.literal_eval(args.snowflake_data_types)
     else:
         data_types = None
+    user_role = args.user_role if args.user_role != '' else None
     try:
-        if args.user_role != '':
-            user_role = args.user_role
-            db_connection = create_engine(URL(
-                account=args.account,
-                user=args.username,
-                password=args.password,
-                database=args.database,
-                schema=args.schema,
-                warehouse=args.warehouse,
-                role = user_role,
-            ))
+        if args.private_key_path != '':
+            if args.private_key_passphrase == '':
+                print("Please provide a passphrase for your private key.")
+                sys.exit(errors.EXIT_CODE_INVALID_ARGUMENTS)
+            private_key = decode_rsa(rsa_key=args.private_key_path, passphrase= args.private_key_passphrase)
+            con = snowflake.connector.connect(user=args.username, account=args.account,
+                                            warehouse=args.warehouse,
+                                            database=args.database, schema=args.schema,
+                                            role = user_role,
+                                            private_key=private_key)
+        
+            db_connection = create_engine('snowflake://', creator = lambda: con)
+        
         else:
-            db_connection = create_engine(URL(
-                account=args.account,
-                user=args.username,
-                password=args.password,
-                database=args.database,
-                schema=args.schema,
-                warehouse=args.warehouse
-            ))
+            if args.user_role != '':
+                db_connection = create_engine(URL(
+                    account=args.account,
+                    user=args.username,
+                    password=args.password,
+                    database=args.database,
+                    schema=args.schema,
+                    warehouse=args.warehouse,
+                    role = user_role,
+                ))
+            else:
+                db_connection = create_engine(URL(
+                    account=args.account,
+                    user=args.username,
+                    password=args.password,
+                    database=args.database,
+                    schema=args.schema,
+                    warehouse=args.warehouse
+                ))
         db_connection.connect()
     except DatabaseError as db_e:
         if 'Incorrect username or password' in str(db_e):

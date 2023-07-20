@@ -1,7 +1,9 @@
+import os
 import argparse
 import snowflake.connector
 from snowflake.connector.errors import DatabaseError, ForbiddenError, ProgrammingError
 import sys
+from utils import decode_rsa
 
 try:
     import errors
@@ -19,6 +21,8 @@ def get_args():
     parser.add_argument('--schema', dest='schema', required=False)
     parser.add_argument('--query', dest='query', required=True)
     parser.add_argument('--user-role', dest = 'user_role', required = False, default = '')
+    parser.add_argument('--private-key-path', dest='private_key_path', required=False, default = '')
+    parser.add_argument('--private-key-passphrase', dest='private_key_passphrase', required=False, default = '')
     args = parser.parse_args()
     return args
 
@@ -44,17 +48,28 @@ def main():
     database = args.database
     schema = args.schema
     query = args.query
-    user_role = args.user_role
+    user_role = args.user_role if args.user_role != '' else None
 
     try:
-        if user_role != '':
-            con = snowflake.connector.connect(user=username, password=password,
-                                            account=account, warehouse=warehouse,
-                                            database=database, schema=schema, role = user_role)
+        if args.private_key_path != '':
+            if args.private_key_passphrase == '':
+                print("Please provide a passphrase for your private key.")
+                sys.exit(errors.EXIT_CODE_INVALID_ARGUMENTS)
+            private_key = decode_rsa(rsa_key=args.private_key_path, passphrase= args.private_key_passphrase)
+            con = snowflake.connector.connect(user=username, account=account,
+                                            warehouse=warehouse,
+                                            database=database, schema=schema,
+                                            role = user_role,
+                                            private_key=private_key)
         else:
-            con = snowflake.connector.connect(user=username, password=password,
-                                            account=account, warehouse=warehouse,
-                                            database=database, schema=schema)
+            if user_role != '':
+                con = snowflake.connector.connect(user=username, password=password,
+                                                account=account, warehouse=warehouse,
+                                                database=database, schema=schema, role = user_role)
+            else:
+                con = snowflake.connector.connect(user=username, password=password,
+                                                account=account, warehouse=warehouse,
+                                                database=database, schema=schema)
 
         cur = con.cursor()
     except DatabaseError as db_e:
