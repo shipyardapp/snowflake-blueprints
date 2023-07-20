@@ -6,13 +6,13 @@ import pandas as pd
 from pandas.io.sql import DatabaseError
 import sys
 import shipyard_utils as shipyard
-from utils import decode_rsa
 
 try:
     import errors
+    import utils
 
 except BaseException:
-    from . import errors
+    from . import errors, utils
 
 
 def get_args():
@@ -123,7 +123,7 @@ def main():
             if args.private_key_passphrase == '':
                 print("Please provide a passphrase for your private key.")
                 sys.exit(errors.EXIT_CODE_INVALID_ARGUMENTS)
-            private_key = decode_rsa(args.private_key_path, args.private_key_passphrase)
+            private_key = utils.decode_rsa(args.private_key_path, args.private_key_passphrase)
             con = snowflake.connector.connect(user=username, account=account,
                                             warehouse=warehouse,
                                             database=database, schema=schema,

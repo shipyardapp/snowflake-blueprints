@@ -13,11 +13,11 @@ import ast
 import snowflake.sqlalchemy as sql
 from sqlalchemy import Table, Column, Integer, String, MetaData
 from copy import deepcopy
-from utils import decode_rsa
 try:
     import errors
+    import utils
 except BaseException:
-    from . import errors
+    from . import errors, utils
 import warnings
 import numpy as np
 warnings.simplefilter(action='ignore', category=UserWarning)
@@ -538,7 +538,7 @@ def main():
             if args.private_key_passphrase == '':
                 print("Please provide a passphrase for your private key.")
                 sys.exit(errors.EXIT_CODE_INVALID_ARGUMENTS)
-            private_key = decode_rsa(rsa_key=args.private_key_path, passphrase= args.private_key_passphrase)
+            private_key = utils.decode_rsa(rsa_key=args.private_key_path, passphrase= args.private_key_passphrase)
             con = snowflake.connector.connect(user=args.username, account=args.account,
                                             warehouse=args.warehouse,
                                             database=args.database, schema=args.schema,
